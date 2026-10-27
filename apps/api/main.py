@@ -2,10 +2,10 @@ import os, uuid, psycopg2, json
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from packages.trace.src.trace.schemas import TraceRun, TraceStep
-from packages.agent_core.src.llm import LLMClient
-from packages.agent_core.src.planner import create_plan
-from packages.agent_core.src.executor import execute_step
-from packages.agent_core.src.critic import critique
+from packages.agent_core.llm import LLMClient
+from packages.agent_core.planner import create_plan
+from packages.agent_core.executor import execute_step
+from packages.agent_core.critic import critique
 
 app = FastAPI()
 DB_URL = os.getenv("DATABASE_URL")
