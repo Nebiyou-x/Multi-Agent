@@ -26,6 +26,10 @@ class TraceRun(BaseModel):
     status: RunStatus = "running"
     steps: List[TraceStep] = Field(default_factory=list)
     final_output: Optional[Any] = None
+    # Structured deliverables (e.g. {"type": "chart", "url": "..."}, {"type": "csv", ...})
+    artifacts: List[dict] = Field(default_factory=list)
+    # Set when status in {"failed", "timeout"}
+    error: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
