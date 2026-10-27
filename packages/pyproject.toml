@@ -1,0 +1,8 @@
+dependencies = [
+    "pydantic>=2.0",
+    "httpx",
+    "openai",
+    "anthropic",
+    "google-genai",
+    "tenacity"
+]

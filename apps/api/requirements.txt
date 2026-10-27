@@ -1,0 +1,9 @@
+fastapi 
+uvicorn 
+psycopg2-binary 
+redis 
+pydantic 
+httpx 
+google-genai
+openai 
+anthropic
