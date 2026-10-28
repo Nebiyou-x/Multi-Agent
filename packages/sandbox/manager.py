@@ -81,7 +81,12 @@ class SandboxManager:
                 raise ValueError(f"Input file names must be flat basenames, got {name!r}")
             if isinstance(content, (bytes, bytearray)):
                 data: bytes = bytes(content)
+            elif isinstance(content, str):
+                # A plain string is text, not JSON - write it verbatim so a
+                # .txt/.md/.csv input keeps its exact contents.
+                data = content.encode("utf-8")
             else:
+                # Structured inputs (http_fetch / sql_query / tool outputs)
                 data = json.dumps(content, default=str).encode("utf-8")
             (in_dir / safe).write_bytes(data)
         out_dir = Path(tmp) / "out"
@@ -137,6 +142,7 @@ class SandboxManager:
 
         tmp = self._prepare_workdir(code, input_files or {})
         streams: Dict[str, List[str]] = {"stdout": [], "stderr": []}
+        stream_truncated: set = set()
 
         def _append(stream: str, text: str) -> None:
             streams[stream].append(text)
@@ -147,6 +153,7 @@ class SandboxManager:
             if len(joined) > output_cap:
                 # Keep only the tail - the beginning of a huge dump is useless
                 streams[stream] = [joined[-output_cap:]]
+                stream_truncated.add(stream)
 
         def _reader(container, stream: str, stdout: bool):
             try:
@@ -217,9 +224,9 @@ class SandboxManager:
         stdout_text = "".join(streams["stdout"])
         stderr_text = "".join(streams["stderr"])
         tail_out, tail_err = stdout_text[-output_cap:], stderr_text[-output_cap:]
-        if len(stdout_text) > output_cap:
+        if "stdout" in stream_truncated:
             warnings.append(f"stdout truncated to {output_cap} bytes (tail kept)")
-        if len(stderr_text) > output_cap:
+        if "stderr" in stream_truncated:
             warnings.append(f"stderr truncated to {output_cap} bytes (tail kept)")
 
         artifacts = self._collect_artifacts(Path(tmp) / "out", total_artifact_cap)

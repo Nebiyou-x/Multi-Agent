@@ -205,7 +205,8 @@ class TestWebSearch:
         return tmp_path / "wsc"
 
     def _fake_tavily(self, call_count):
-        async def fake_post(self, url, json=None, headers=None):
+        # Plain function assigned to client.post - no `self` param.
+        async def fake_post(url, json=None, headers=None):
             call_count["n"] += 1
             return SimpleNamespace(
                 status_code=200,
@@ -269,7 +270,7 @@ class TestWebSearch:
         with patch("packages.tools.web_search.httpx.AsyncClient") as fake_client:
             client = fake_client.return_value.__aenter__.return_value
 
-            async def fake_post(self, url, json=None, headers=None):
+            async def fake_post(url, json=None, headers=None):
                 raise Exception("boom")
 
             client.post = fake_post
