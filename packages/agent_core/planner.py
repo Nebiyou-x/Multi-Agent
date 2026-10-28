@@ -5,7 +5,7 @@ from .llm import LLMClient
 class SubTask(BaseModel):
     id: str = Field(description="s1, s2...")
     description: str
-    tool: Optional[Literal["http_fetch"]] = None  # None = pure LLM reasoning
+    tool: Optional[Literal["http_fetch", "code_execution", "sql_query", "web_search"]] = None  # None = pure LLM reasoning
     depends_on: List[str] = Field(default_factory=list)
 
 class Plan(BaseModel):
@@ -15,7 +15,17 @@ class Plan(BaseModel):
 SYSTEM = """You are the PLANNER. Decompose the user's task into 3-5 executable sub-tasks.
 Rules:
 - Order matters. Use depends_on for DAG.
-- Use tool=http_fetch only if you need external URL/data. Otherwise tool=null.
+- Tool selection:
+  - http_fetch: fetch one specific URL/API endpoint.
+  - web_search: find sources for a question; no known URL yet.
+  - sql_query: read data from the local analytics Postgres (write the SQL in the step description).
+  - code_execution: write+run Python (analysis, math, charting) in a sandbox with NO network.
+- KEEP NETWORK AND CODE SEPARATED: code_execution can never reach the internet.
+  If a step's code needs external data, that data must come from an EARLIER
+  http_fetch/web_search step, and this step must declare it in depends_on so its
+  output files are mounted read-only into the sandbox.
+- For code_execution, the description must state the inputs it needs and what it
+  should write to /out (e.g. a PNG chart).
 - Keep steps atomic and verifiable."""
 
 def validate_plan(plan: Plan):
