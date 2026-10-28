@@ -2,6 +2,7 @@ dependencies = [
     "pydantic>=2.0",
     "httpx",
     "openai",
+    "pytest",
     "anthropic",
     "google-genai",
     "tenacity"

@@ -4,6 +4,7 @@ psycopg2-binary
 redis 
 pydantic 
 httpx 
+pytest
 google-genai
 openai 
 anthropic
