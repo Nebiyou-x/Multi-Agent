@@ -1,0 +1,31 @@
+# Applies to any image build using the repo root as context
+# (agent-api and agent-trace-ui via apps/*/Dockerfile COPY instructions).
+# The sandbox image builds from infra/sandbox-image (self-contained) - unaffected.
+
+# VCS + tooling
+.git
+.github
+.venv
+.venv/
+*.pyc
+__pycache__/
+**/__pycache__/
+
+# Node (builds in-CI anyway; keeps the context small)
+node_modules
+apps/trace-ui/node_modules
+apps/trace-ui/.next
+
+# Runtime data - never ship secrets or binary artifacts into images
+.env
+.env.*
+!.env.example
+data/
+.cache/
+
+# Dev-only files
+pytest.ini
+Makefile
+requirements-dev.txt
+docs/
+datasets/

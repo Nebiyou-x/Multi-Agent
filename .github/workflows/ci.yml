@@ -1,0 +1,110 @@
+# CI - the quality gate. Runs on every PR to main and on main.
+#
+# Three parallel jobs:
+#   python-tests   - unit tests for agent_core / sandbox / tools (all mocked,
+#                    no network, no API keys, no docker daemon required)
+#   trace-ui       - lint + production build of the Next.js trace viewer
+#   docker-images  - build all three runtime images to catch a broken Dockerfile
+#                    before it reaches compose (build only; pushing is docker.yml)
+#
+# Real-network LLM integration tests are intentionally excluded via the
+# "integration" marker - they need live API keys and a reachable LLM.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Read the repo, but allow writing the GHA build cache (used by docker-images).
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------
+  # Python unit tests - fast, hermetic, no external services
+  # ---------------------------------------------------------------
+  python-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install test dependencies
+        run: pip install -r requirements-dev.txt
+
+      # The integration marker is the real-network LLM smoke test - it needs
+      # live keys and a docker daemon, so it is skipped here on purpose.
+      - name: Run unit tests
+        run: pytest -v -m "not integration"
+
+  # ---------------------------------------------------------------
+  # Trace UI - lint + production build
+  # ---------------------------------------------------------------
+  trace-ui:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/trace-ui
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/trace-ui/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+  # ---------------------------------------------------------------
+  # Docker - verify each Dockerfile still builds (catches copy/import
+  # breakage early). Build-only; docker.yml pushes the images.
+  # ---------------------------------------------------------------
+  docker-images:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: agent-sandbox
+            dockerfile: infra/sandbox-image/Dockerfile
+            context: infra/sandbox-image
+          - image: agent-api
+            dockerfile: apps/api/Dockerfile
+            context: .
+          - image: agent-trace-ui
+            dockerfile: apps/trace-ui/Dockerfile
+            context: .
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build ${{ matrix.image }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          tags: ${{ matrix.image }}:ci
+          load: true
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
