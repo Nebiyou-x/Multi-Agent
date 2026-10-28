@@ -5,5 +5,7 @@ dependencies = [
     "pytest",
     "anthropic",
     "google-genai",
-    "tenacity"
+    "tenacity",
+    "docker",
+    "psycopg2-binary"
 ]

@@ -18,8 +18,18 @@ services:
       dockerfile: apps/api/Dockerfile
     ports: ["8000:8000"]
     env_file: .env
+    environment:
+      # Sandbox image is built separately (see Makefile below); point at it by name
+      SANDBOX_IMAGE: "agent-sandbox:latest"
+      ARTIFACT_DIR: "/app/data/artifacts"
     depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
-    volumes: ["./packages:/app/packages", "./apps/api:/app/apps/api"]
+    volumes:
+      # The sandbox manager runs ephemeral containers via the docker socket
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./packages:/app/packages"
+      - "./apps/api:/app/apps/api"
+      # Host-visible artifacts dir (served by /artifacts/{run_id}/{name})
+      - "./data/artifacts:/app/data/artifacts"
   trace-ui:
     build:
       context: .
