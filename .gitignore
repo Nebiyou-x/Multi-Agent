@@ -218,3 +218,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+# runtime sandbox outputs (kept dir, ignored contents)
+data/artifacts/
+!data/artifacts/.gitkeep

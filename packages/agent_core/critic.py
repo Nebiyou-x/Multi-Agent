@@ -17,4 +17,4 @@ async def critique(task: str, scratchpad: dict, final_output: str, llm: LLMClien
         f"TASK: {task}\nSCRATCHPAD: {scratchpad}\nOUTPUT: {final_output}",
         CriticVerdict
     )
-    return resp.parsed, resp.model_dump(include={"tokens_in","tokens_out","cost_usd","latency_ms"})
+    return resp.parsed, resp.model_dump(include={"tokens_in","tokens_out","cost_usd","latency_ms","model"})

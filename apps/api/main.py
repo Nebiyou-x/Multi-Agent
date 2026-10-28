@@ -83,7 +83,7 @@ async def create_run(req: TaskRequest):
     for step in run.steps:
         arts = (step.input.get("tool_output") or {}).get("artifacts") or []
         produced.extend(f"/artifacts/{run.run_id}/{a['name']}" for a in arts if a.get("content_b64"))
-    run.final_output = {"answer": final_output, "artifacts": produced}
+    run.final_output = {"answer": final_output, "artifacts": list(dict.fromkeys(produced))}  # dedupe
     run.status = "succeeded"
     persist_run(run)
     return run

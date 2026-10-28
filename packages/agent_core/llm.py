@@ -29,6 +29,31 @@ COST_PER_1K = {
 
 T = TypeVar("T", bound=BaseModel)
 
+# Transient-transport detection: 5xx / 429 / network-level errors deserve a
+# backoff retry; 4xx (auth, invalid model, bad request) must not.
+_TRANSIENT_MARKERS = ("429", "500", "502", "503", "504", "rate limit", "ratelimit",
+                      "overloaded", "unavailable", "high demand", "connection",
+                      "temporarily", "timeout", "timed out")
+
+
+def _is_transient(e: Exception) -> bool:
+    code = getattr(e, "code", None) or getattr(e, "status_code", None)
+    if str(code) in {"429", "500", "502", "503", "504"}:
+        return True
+    return any(m in str(e).lower() for m in _TRANSIENT_MARKERS)
+
+
+async def _with_retry(fn, attempts: int = 4, base: float = 1.0):
+    """Retry a transport call with exponential backoff on transient errors only."""
+    for i in range(attempts):
+        try:
+            return await fn()
+        except Exception as e:
+            if i == attempts - 1 or not _is_transient(e):
+                raise
+            await asyncio.sleep(base * (2 ** i))
+
+
 class LLMResponse(BaseModel):
     content: str
     parsed: Optional[BaseModel] = None
@@ -58,25 +83,25 @@ class LLMClient:
         tin, tout, content = 0, 0, ""
 
         if self.provider == "openai":
-            res = await self.oai.chat.completions.create(
+            res = await _with_retry(lambda: self.oai.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
                 temperature=temperature
-            )
+            ))
             content = res.choices[0].message.content or ""
             tin, tout = res.usage.prompt_tokens, res.usage.completion_tokens
 
         elif self.provider == "anthropic":
-            res = await self.ant.messages.create(
+            res = await _with_retry(lambda: self.ant.messages.create(
                 model=self.model, system=system, max_tokens=4000,
                 messages=[{"role": "user", "content": user}], temperature=temperature
-            )
+            ))
             content = res.content[0].text
             tin, tout = res.usage.input_tokens, res.usage.output_tokens
 
         elif self.provider == "gemini":
             # Gemini SDK is sync - run in a thread so the event loop is never blocked
-            res = await asyncio.to_thread(
+            res = await _with_retry(lambda: asyncio.to_thread(
                 self.gemini.models.generate_content,
                 model=self.model,
                 contents=user,
@@ -85,7 +110,7 @@ class LLMClient:
                     temperature=temperature,
                     max_output_tokens=4000,
                 )
-            )
+            ))
             content = res.text or ""
             if res.usage_metadata:
                 tin = res.usage_metadata.prompt_token_count or 0
@@ -183,7 +208,7 @@ class LLMClient:
         for _ in range(retries):
             start = time.time()
             try:
-                res = await asyncio.to_thread(
+                res = await _with_retry(lambda: asyncio.to_thread(
                     self.gemini.models.generate_content,
                     model=self.model,
                     contents=prompt,
@@ -193,7 +218,7 @@ class LLMClient:
                         response_mime_type="application/json",
                         response_schema=schema,  # native Pydantic support
                     )
-                )
+                ))
                 tin = res.usage_metadata.prompt_token_count or 0 if res.usage_metadata else 0
                 tout = res.usage_metadata.candidates_token_count or 0 if res.usage_metadata else 0
                 parsed = schema.model_validate_json(res.text)
@@ -203,6 +228,9 @@ class LLMClient:
                     model=self.model, provider=self.provider
                 )
             except Exception as e:
+                # Prompt-fix retry only for validation failures; transport
+                # failures already got their own backoff inside _with_retry
+                # and re-raised, so we surface them immediately.
                 last_err = e
                 prompt = user + f"\n\nPrevious output was invalid: {e}. Fix the JSON."
         raise ValueError(f"Failed structured output after {retries} retries: {last_err}")
