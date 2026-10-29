@@ -67,7 +67,7 @@ jobs:
           cache-dependency-path: apps/trace-ui/package-lock.json
 
       - name: Install
-        run: npm ci
+        run: npm i
 
       - name: Lint
         run: npm run lint
