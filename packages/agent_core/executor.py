@@ -92,6 +92,11 @@ async def execute_step(task: str, subtask, scratchpad: dict, llm: LLMClient):
                 tool_error = f"{type(e).__name__}: {e}"
                 tool_output = {"error": tool_error}
 
+            # For code_execution, attach the generated source so it persists on
+            # the step (trace viewer highlights it; critic can reference it).
+            if subtask.tool == "code_execution" and isinstance(tool_output, dict) and "code" not in tool_output:
+                tool_output["code"] = args.get("code")
+
             # Tools that return a dict with a top-level "error" (sandbox exec, sql, web)
             if tool_error is None and isinstance(tool_output, dict) and tool_output.get("error"):
                 tool_error = str(tool_output["error"])
