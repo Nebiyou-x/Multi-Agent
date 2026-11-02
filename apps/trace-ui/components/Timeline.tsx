@@ -29,9 +29,9 @@ function isImage(name: string) {
 
 function KV({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex gap-2 py-0.5 text-[11px]">
-      <span className="w-16 shrink-0 text-neutral-500">{k}</span>
-      <span className="text-neutral-300 tabular-nums">{v}</span>
+    <div className="kv__row">
+      <span className="kv__k">{k}</span>
+      <span className="kv__v">{v}</span>
     </div>
   );
 }
@@ -39,7 +39,7 @@ function KV({ k, v }: { k: string; v: string }) {
 function MetaBlock({ step }: { step: Step }) {
   const t = step.tokens ?? { in: 0, out: 0 };
   return (
-    <div>
+    <div className="kv">
       <KV k="tokens in" v={fmtTok(t.in)} />
       <KV k="tokens out" v={fmtTok(t.out)} />
       <KV k="cost" v={fmtUsd(step.cost_usd ?? 0)} />
@@ -59,27 +59,21 @@ function OutputView({ step, runId }: { step: Step; runId: string }) {
   if (step.type === "critique") {
     const v = out as { verdict?: string; feedback?: string; score?: number };
     return (
-      <div className="space-y-2 text-[13px]">
-        <div className="flex items-center gap-2">
-          <span
-            className={`rounded px-2 py-0.5 font-mono text-xs font-medium ${
-              v.verdict === "PASS" ? "bg-emerald-500/10 text-emerald-300" : "bg-red-500/10 text-red-300"
-            }`}
-          >
-            {v.verdict ?? "—"}
-          </span>
+      <div className="step-block">
+        <div className="step-panel" style={{ display: "flex", alignItems: "center", gap: "var(--space-xs)" }}>
+          <span className={`chip ${v.verdict === "PASS" ? "chip--ok" : "chip--bad"}`}>{v.verdict ?? "n/a"}</span>
           {typeof v.score === "number" && (
-            <span className="text-neutral-400">
-              confidence <span className="font-mono tabular-nums">{(v.score * 100).toFixed(0)}%</span>
+            <span className="step-block__label">
+              confidence <span className="mono">{(v.score * 100).toFixed(0)}%</span>
             </span>
           )}
         </div>
-        {v.feedback && <p className="whitespace-pre-wrap text-neutral-300">{v.feedback}</p>}
+        {v.feedback && <p className="answer__body">{v.feedback}</p>}
       </div>
     );
   }
   if (step.type === "revision" && typeof out.revised === "string")
-    return <p className="whitespace-pre-wrap text-[13px] text-neutral-300">{out.revised}</p>;
+    return <p className="answer__body">{out.revised}</p>;
 
   const artifacts = (Array.isArray(to.artifacts) ? to.artifacts : []) as {
     name: string;
@@ -89,42 +83,50 @@ function OutputView({ step, runId }: { step: Step; runId: string }) {
 
   if (artifacts.length > 0)
     return (
-      <div className="grid grid-cols-2 gap-2">
+      <div className="artifact-grid">
         {artifacts.map((a) => (
           <a
             key={a.name}
             href={`${API}/artifacts/${runId}/${a.name}`}
             target="_blank"
             rel="noreferrer"
-            className="group/art rounded-lg border border-neutral-800 bg-neutral-900/60 p-2 transition-colors hover:border-neutral-700"
+            className="artifact"
           >
             {isImage(a.name) ? (
-              <img
-                src={`${API}/artifacts/${runId}/${a.name}`}
-                alt={a.name}
-                className="max-h-44 w-full rounded bg-neutral-950 object-contain"
-              />
+              <img src={`${API}/artifacts/${runId}/${a.name}`} alt={a.name} className="artifact__image" />
             ) : (
-              <div className="grid h-16 place-items-center rounded bg-neutral-950 font-mono text-xs text-neutral-500">
-                {a.name.split(".").pop()?.toUpperCase()}
-              </div>
+              <div className="artifact__file">{a.name.split(".").pop()?.toUpperCase()}</div>
             )}
-            <div className="mt-1.5 flex justify-between text-[10px] text-neutral-500">
-              <span className="truncate">{a.name}</span>
-              <span className="tabular-nums">{a.truncated ? "truncated" : `${(a.size / 1024).toFixed(1)} KB`}</span>
+            <div className="artifact__meta">
+              <span className="artifact__name">{a.name}</span>
+              <span className="artifact__size">
+                {a.truncated ? "truncated" : `${(a.size / 1024).toFixed(1)} KB`}
+              </span>
             </div>
           </a>
         ))}
       </div>
     );
 
-  if (typeof out.result === "string")
-    return <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-neutral-300">{out.result}</p>;
+  if (typeof out.result === "string") return <p className="answer__body">{out.result}</p>;
 
   return (
-    <pre className="code-scroll max-h-64 overflow-auto rounded bg-neutral-950 p-2 text-neutral-300">
-      {highlight(JSON.stringify(step.output ?? {}, null, 2), "json")}
-    </pre>
+    <pre className="step-pre">{highlight(JSON.stringify(step.output ?? {}, null, 2), "json")}</pre>
+  );
+}
+
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      className={`step-row__chevron${open ? " step-row__chevron--open" : ""}`}
+      width="10"
+      height="10"
+      viewBox="0 0 10 10"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path d="M3.5 2L7 5L3.5 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
@@ -152,98 +154,77 @@ function StepRow({
   const sqlSrc = s.name === "sql_query" ? (((to.query as string) || (inAny.query as string) || "").trim() || null) : null;
 
   return (
-    <div className={depth > 0 ? "ml-5 border-l border-neutral-800 pl-4" : ""}>
-      <button
-        onClick={onOpen}
-        className={`group flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors ${
-          open ? "bg-neutral-900/80" : "hover:bg-neutral-900/50"
-        }`}
-      >
-        <span className="relative flex w-4 justify-center">
-          <span className={`h-2.5 w-2.5 rounded-full ${color.dot} ${open ? "ring-4 ring-neutral-800" : ""}`} />
+    <div className="step-row">
+      <button type="button" onClick={onOpen} className="step-row__toggle" aria-expanded={open}>
+        <span className="step-row__swatch">
+          <span className={`swatch ${color.swatch}`} aria-hidden="true" />
         </span>
-        <span className="font-mono text-xs font-medium text-neutral-200">{s.name}</span>
-        <span className={`rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide ${color.text} bg-neutral-900`}>
-          {s.type.replace("_call", "")}
-        </span>
-        {s.error && (
-          <span className="rounded bg-red-500/10 px-1.5 py-0.5 font-mono text-[10px] text-red-300">error</span>
-        )}
-        <span className="ml-auto flex shrink-0 items-center gap-3">
-          <span className="w-20">
+        <span className="step-row__name">{s.name}</span>
+        <span className={`chip ${color.chip} step-row__type`}>{s.type.replace("_call", "")}</span>
+        {s.error && <span className="chip chip--bad step-row__error">error</span>}
+        <span className="step-row__right">
+          <span className="step-row__bar">
             <Bar value={s.cost_usd ?? 0} max={maxCost} tone={color.bar} />
           </span>
-          <span className="w-14 text-right font-mono text-[11px] tabular-nums text-neutral-500">
-            {fmtUsd(s.cost_usd ?? 0)}
-          </span>
-          <span className="w-12 text-right font-mono text-[11px] tabular-nums text-neutral-600">
-            {fmtMs(s.latency_ms ?? 0)}
-          </span>
-          <span className={`font-mono text-[10px] transition-transform ${open ? "text-neutral-400" : "text-neutral-700"}`}>
-            {open ? "▾" : "▸"}
-          </span>
+          <span className="step-row__cost">{fmtUsd(s.cost_usd ?? 0)}</span>
+          <span className="step-row__latency">{fmtMs(s.latency_ms ?? 0)}</span>
+          <Chevron open={open} />
         </span>
       </button>
 
       {open && (
-        <div className="mb-2 ml-6 rounded-xl border border-neutral-800 bg-neutral-950/60 p-3">
-          <div className="mb-2 flex items-center gap-1">
+        <div className="step-row__panel">
+          <div className="tabs">
             {(["output", "input", "meta"] as const).map((t) => (
               <button
                 key={t}
+                type="button"
                 onClick={() => setTab(t)}
-                className={`rounded-md px-2.5 py-1 font-mono text-[11px] transition-colors ${
-                  tab === t ? "bg-neutral-800 text-neutral-100" : "text-neutral-500 hover:text-neutral-300"
-                }`}
+                className="tab"
+                aria-pressed={tab === t}
               >
                 {t}
               </button>
             ))}
           </div>
 
-          {tab === "meta" && <MetaBlock step={s} />}
+          <div className="step-panel">
+            {tab === "meta" && <MetaBlock step={s} />}
 
-          {tab === "input" && (
-            <div className="space-y-2">
-              {codeSrc && (
-                <div>
-                  <div className="mb-1 font-mono text-[10px] uppercase tracking-wide text-neutral-600">
-                    generated code
+            {tab === "input" && (
+              <>
+                {codeSrc && (
+                  <div className="step-block">
+                    <div className="step-block__label">generated code</div>
+                    <pre className="step-pre">{highlight(codeSrc, "python")}</pre>
                   </div>
-                  <pre className="code-scroll max-h-60 overflow-auto rounded-lg bg-neutral-950 p-2.5">
-                    {highlight(codeSrc, "python")}
-                  </pre>
-                </div>
-              )}
-              {sqlSrc && (
-                <div>
-                  <div className="mb-1 font-mono text-[10px] uppercase tracking-wide text-neutral-600">sql</div>
-                  <pre className="code-scroll max-h-40 overflow-auto rounded-lg bg-neutral-950 p-2.5">
-                    {highlight(sqlSrc, "sql")}
-                  </pre>
-                </div>
-              )}
-              {!codeSrc && !sqlSrc && (
-                <pre className="code-scroll max-h-40 overflow-auto rounded-lg bg-neutral-950 p-2.5 text-[12px]">
-                  {highlight(JSON.stringify(s.input ?? {}, null, 2), "json")}
-                </pre>
-              )}
-            </div>
-          )}
+                )}
+                {sqlSrc && (
+                  <div className="step-block">
+                    <div className="step-block__label">sql</div>
+                    <pre className="step-pre">{highlight(sqlSrc, "sql")}</pre>
+                  </div>
+                )}
+                {!codeSrc && !sqlSrc && (
+                  <pre className="step-pre">{highlight(JSON.stringify(s.input ?? {}, null, 2), "json")}</pre>
+                )}
+              </>
+            )}
 
-          {tab === "output" && <OutputView step={s} runId={runId} />}
+            {tab === "output" && <OutputView step={s} runId={runId} />}
+          </div>
 
           {s.error && (
-            <div className="mt-2 rounded-lg border border-red-900/50 bg-red-950/30 p-2.5">
-              <div className="mb-0.5 font-mono text-[10px] uppercase tracking-wide text-red-400">error</div>
-              <p className="whitespace-pre-wrap font-mono text-xs text-red-300">{s.error}</p>
+            <div className="step-error">
+              <div className="step-error__label">error</div>
+              <p className="step-error__text">{s.error}</p>
             </div>
           )}
         </div>
       )}
 
       {open && node.children.length > 0 && (
-        <div className="ml-4">
+        <div className="trail__children">
           {node.children.map((c) => (
             <ChildRow key={c.step.step_id} node={c} depth={depth + 1} runId={runId} maxCost={maxCost} />
           ))}
@@ -265,7 +246,16 @@ function ChildRow({
   maxCost: number;
 }) {
   const [open, setOpen] = useState(false);
-  return <StepRow node={node} depth={depth} open={open} onOpen={() => setOpen((o) => !o)} runId={runId} maxCost={maxCost} />;
+  return (
+    <StepRow
+      node={node}
+      depth={depth}
+      open={open}
+      onOpen={() => setOpen((o) => !o)}
+      runId={runId}
+      maxCost={maxCost}
+    />
+  );
 }
 
 export default function Timeline({ steps, runId }: { steps: Step[]; runId: string }) {
@@ -278,13 +268,19 @@ export default function Timeline({ steps, runId }: { steps: Step[]; runId: strin
       return n;
     });
   const maxCost = Math.max(1e-9, ...steps.map((s) => s.cost_usd ?? 0));
-  
+
   return (
-    <div className="space-y-0.5">
+    <div className="timeline">
       {roots.map((n) => (
-        <div key={n.step.step_id}>
-          <StepRow node={n} depth={0} open={openSet.has(n.step.step_id)} onOpen={() => toggle(n.step.step_id)} runId={runId} maxCost={maxCost} />
-        </div>
+        <StepRow
+          key={n.step.step_id}
+          node={n}
+          depth={0}
+          open={openSet.has(n.step.step_id)}
+          onOpen={() => toggle(n.step.step_id)}
+          runId={runId}
+          maxCost={maxCost}
+        />
       ))}
     </div>
   );
@@ -293,11 +289,7 @@ export default function Timeline({ steps, runId }: { steps: Step[]; runId: strin
 // --- diff view (compare page) ---------------------------------------------
 export function DiffBlock({ a, b }: { a: string; b: string }) {
   const parts = diffWords(a, b);
-  return (
-    <div className="code-scroll max-h-96 overflow-auto rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-[13px] leading-relaxed">
-      {renderDiff(parts)}
-    </div>
-  );
+  return <div className="diff">{renderDiff(parts)}</div>;
 }
 
 function renderDiff(parts: DiffPart[]) {
@@ -305,9 +297,13 @@ function renderDiff(parts: DiffPart[]) {
     p.type === "same" ? (
       <span key={i}>{p.text}</span>
     ) : p.type === "add" ? (
-      <span key={i} className="diff-add">{p.text}</span>
+      <span key={i} className="diff-add">
+        {p.text}
+      </span>
     ) : (
-      <span key={i} className="diff-del">{p.text}</span>
+      <span key={i} className="diff-del">
+        {p.text}
+      </span>
     )
   );
 }

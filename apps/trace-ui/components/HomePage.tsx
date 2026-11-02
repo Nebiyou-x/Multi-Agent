@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { listRuns, fmtMs, fmtUsd, type RunSummary } from "@/lib/api";
+import { API, listRuns, fmtMs, fmtUsd, timeAgo, type RunSummary } from "@/lib/api";
+import { ModelChip, StatusPill } from "@/components/ui";
 
 interface DocLink {
   slug: string;
@@ -35,193 +36,324 @@ const PRINCIPLES = [
   { t: "Separated", d: "Orchestration and infrastructure stay apart, so either can change alone." },
 ];
 
+function RunLoading() {
+  return (
+    <div className="panel">
+      <div className="panel__head">
+        <h2 className="panel__title">Latest run</h2>
+      </div>
+      <div className="panel__body skeleton__stack" aria-hidden="true">
+        <div className="skeleton skeleton--title" />
+        <div className="skeleton skeleton--line" />
+        <div className="skeleton skeleton--block" />
+      </div>
+    </div>
+  );
+}
+
 export default function HomePage({ docs }: { docs: DocLink[] }) {
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    listRuns(50).then(setRuns).catch((e) => setErr(String(e)));
-  }, []);
+    let active = true;
+    setLoading(true);
+    setErr(null);
+    listRuns(50)
+      .then((data) => {
+        if (active) setRuns(data);
+      })
+      .catch((error) => {
+        if (active) setErr(String(error));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [reloadKey]);
 
   const latestRun = useMemo(() => runs[0], [runs]);
 
   return (
-    <>
-      <section className="hero">
-        <div className="container hero__grid">
-          <div className="hero__text">
-            <h1>Multi-agent orchestration, drawn in the open</h1>
-            <p className="lead">
-              Agent Forge plans, runs and critiques multi-agent tasks in sandboxed steps, and records every one as a trace you can read.
-            </p>
-            <div className="hero__actions">
-              <Link href="/traces" className="btn">
-                View traces
-              </Link>
-              <Link href="/docs/getting-started" className="btn btn--quiet">
-                Getting started
-              </Link>
-            </div>
-          </div>
+    <div className="shell page workbench">
+      <div className="page-head">
+        <div>
+          <h1 className="page-head__title">Workbench</h1>
+          <p className="page-head__line">
+            Agent Forge plans, runs and critiques multi-agent tasks in sandboxed steps, and records every one as a trace you can read.
+          </p>
+          <p className="page-head__meta">
+            API <span className="mono">{API}</span>
+          </p>
+        </div>
+        <div className="page-head__actions">
+          <Link href="/traces" className="btn btn--primary">
+            Open traces
+          </Link>
+          <Link href="/docs/getting-started" className="btn btn--quiet">
+            Getting started
+          </Link>
+        </div>
+      </div>
 
-          <figure className="elev">
-            <div className="elev__sheet">
-              <ol className="elev__track">
-                {STEPS.map((s, i) => (
-                  <li key={s.t} className={`elev__node${i === 2 ? " elev__node--key" : ""}`}>
-                    <span className="elev__t">{s.t}</span>
-                    <span className="elev__d">{s.d}</span>
-                  </li>
-                ))}
-              </ol>
-              <div className="elev__loop">
-                <span className="elev__t">Revision</span>
-                <span className="elev__d">loops back to tool call or LLM call until the critic passes, or the step ceiling is reached.</span>
+      <div className="workbench__grid">
+        <div className="workbench__main">
+          {loading && <RunLoading />}
+
+          {!loading && err && (
+            <div className="panel">
+              <div className="panel__head">
+                <h2 className="panel__title">Latest run</h2>
+              </div>
+              <div className="panel__body">
+                <div className="empty">
+                  <h3 className="empty__title">The API did not answer</h3>
+                  <p className="empty__line">The workbench could not read runs from <span className="empty__path">{API}</span>.</p>
+                  <p className="empty__path">{err}</p>
+                  <div className="empty__actions">
+                    <button type="button" className="btn btn--primary" onClick={() => setReloadKey((value) => value + 1)}>
+                      Try again
+                    </button>
+                    <Link href="/traces" className="btn btn--quiet">
+                      Open committed traces
+                    </Link>
+                  </div>
+                </div>
               </div>
             </div>
-            <figcaption className="elev__caption">The five step types a run is built from, drawn in the order a plan executes them.</figcaption>
-          </figure>
-        </div>
-      </section>
+          )}
 
-      <section className="plate">
-        <div className="container">
-          <div className="plate__head">
-            <h2>Core concepts</h2>
-          </div>
-          <div className="register">
-            {CONCEPTS.map((c, i) => (
-              <div className="register__row" key={c.t}>
-                <span className="register__n">{String(i + 1).padStart(2, "0")}</span>
-                <h3 className="register__t">{c.t}</h3>
-                <p className="register__p">{c.d}</p>
+          {!loading && !err && latestRun && (
+            <article className="panel panel--lead">
+              <div className="panel__head">
+                <h2 className="panel__title">Latest run</h2>
+                <StatusPill status={latestRun.status} />
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {latestRun && (
-        <section className="plate plate--band">
-          <div className="container">
-            <div className="plate__head">
-              <h2>Latest trace</h2>
-            </div>
-            <div className="latest">
-              <div>
-                <p className="latest__task">{latestRun.task}</p>
-                <div className="latest__acts">
-                  <Link href={`/traces/${latestRun.run_id}`} className="link-rule">
+              <div className="panel__body record">
+                <p className="record__task">{latestRun.task}</p>
+                <div className="record__meta">
+                  <div className="meta__item">
+                    <span className="meta__label">Run</span>
+                    <span className="meta__value">{latestRun.run_id.slice(0, 8)}</span>
+                  </div>
+                  <div className="meta__item">
+                    <span className="meta__label">Model</span>
+                    <ModelChip provider={latestRun.provider} model={latestRun.model} />
+                  </div>
+                  <div className="meta__item">
+                    <span className="meta__label">Started</span>
+                    <span className="meta__value">{timeAgo(latestRun.created_at)}</span>
+                  </div>
+                </div>
+                <div className="metrics metrics--three">
+                  <div className="metric">
+                    <span className="metric__value">{fmtMs(latestRun.duration_ms)}</span>
+                    <span className="metric__label">Duration</span>
+                  </div>
+                  <div className="metric">
+                    <span className="metric__value">{fmtUsd(latestRun.cost_usd)}</span>
+                    <span className="metric__label">Cost</span>
+                  </div>
+                  <div className="metric">
+                    <span className="metric__value">{latestRun.n_steps}</span>
+                    <span className="metric__label">Steps</span>
+                  </div>
+                </div>
+                <div className="record__actions">
+                  <Link href={`/traces/${latestRun.run_id}`} className="btn btn--primary">
                     Inspect run
+                  </Link>
+                  <Link href="/traces" className="btn btn--quiet">
+                    All traces
                   </Link>
                 </div>
               </div>
-              <div className="gauge">
-                <div className="gauge__item">
-                  <span className="gauge__v">{fmtMs(latestRun.duration_ms)}</span>
-                  <span className="gauge__l">Duration</span>
-                </div>
-                <div className="gauge__item">
-                  <span className="gauge__v">{fmtUsd(latestRun.cost_usd)}</span>
-                  <span className="gauge__l">Cost</span>
-                </div>
-                <div className="gauge__item">
-                  <span className="gauge__v">{latestRun.n_steps}</span>
-                  <span className="gauge__l">Steps</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
+            </article>
+          )}
 
-      <section className="plate">
-        <div className="container">
-          <div className="plate__head">
-            <h2>Design philosophy</h2>
-          </div>
-          <div className="principle">
-            {PRINCIPLES.map((p) => (
-              <div className="principle__item" key={p.t}>
-                <span className="principle__t">{p.t}</span>
-                <span className="principle__d">{p.d}</span>
+          {!loading && !err && !latestRun && (
+            <div className="panel">
+              <div className="panel__head">
+                <h2 className="panel__title">Latest run</h2>
               </div>
-            ))}
-          </div>
-          <div className="philosophy__more">
-            <p className="philosophy__statement">A clear separation between orchestration and infrastructure, so either can be rebuilt without the other.</p>
-            <Link href="/docs/design-decisions" className="link-rule">
-              Read the ADRs
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {docs.length > 0 && (
-        <section className="plate">
-          <div className="container">
-            <div className="plate__head">
-              <h2>Documentation</h2>
-            </div>
-            <div className="register">
-              {docs.map((doc, i) => (
-                <div className="register__row" key={doc.slug}>
-                  <span className="register__n">{String(i + 1).padStart(2, "0")}</span>
-                  <h3 className="register__t">
-                    <Link href={`/docs/${doc.slug}`} className="register__link">
-                      {doc.title}
+              <div className="panel__body">
+                <div className="empty">
+                  <h3 className="empty__title">No runs recorded yet</h3>
+                  <p className="empty__line">
+                    The workbench reads runs from <span className="empty__path">{API}</span>. Post a task to create the first trace.
+                  </p>
+                  <div className="empty__actions">
+                    <Link href="/docs/running-a-task" className="btn btn--primary">
+                      Read how to run a task
                     </Link>
-                  </h3>
-                  <p className="register__p">{doc.summary}</p>
+                    <Link href="/traces" className="btn btn--quiet">
+                      Open committed traces
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <section>
+            <div className="timeline-head">
+              <h2>Recent runs</h2>
+              <Link href="/traces" className="table__action">
+                All traces
+              </Link>
+            </div>
+            {loading && (
+              <div className="panel">
+                <div className="panel__body skeleton__stack" aria-hidden="true">
+                  <div className="skeleton skeleton--line" />
+                  <div className="skeleton skeleton--line" />
+                  <div className="skeleton skeleton--line" />
+                </div>
+              </div>
+            )}
+            {!loading && err && <p className="empty__line">Recent runs are unavailable until the API answers.</p>}
+            {!loading && !err && runs.length > 0 && (
+              <div className="table-scroll">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Task</th>
+                      <th>Run</th>
+                      <th className="hide-sm">Duration</th>
+                      <th className="hide-sm">Cost</th>
+                      <th>Steps</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {runs.slice(0, 5).map((r) => (
+                      <tr key={r.run_id}>
+                        <td>
+                          <Link href={`/traces/${r.run_id}`} className="table__task">
+                            {r.task.slice(0, 60)}
+                          </Link>
+                        </td>
+                        <td>
+                          <Link href={`/traces/${r.run_id}`} className="table__action">
+                            {r.run_id.slice(0, 8)}
+                          </Link>
+                        </td>
+                        <td className="hide-sm">
+                          <span className="table__num">{fmtMs(r.duration_ms)}</span>
+                        </td>
+                        <td className="hide-sm">
+                          <span className="table__num">{fmtUsd(r.cost_usd)}</span>
+                        </td>
+                        <td>
+                          <span className="table__num">{r.n_steps}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {!loading && !err && runs.length === 0 && <p className="empty__line">No committed runs yet.</p>}
+          </section>
+
+          <section>
+            <div className="timeline-head">
+              <h2>Documentation</h2>
+              <Link href="/docs" className="table__action">
+                All docs
+              </Link>
+            </div>
+            {docs.length > 0 ? (
+              <ul className="docs-list">
+                {docs.map((doc) => (
+                  <li className="docs-list__item" key={doc.slug}>
+                    <h3>
+                      <Link href={`/docs/${doc.slug}`} className="docs-list__title">
+                        {doc.title}
+                      </Link>
+                    </h3>
+                    <p className="docs-list__summary">{doc.summary}</p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="empty__line">No documentation files were found.</p>
+            )}
+          </section>
+        </div>
+
+        <aside className="workbench__side">
+          <section className="panel">
+            <div className="panel__head">
+              <h2 className="panel__title">The run loop</h2>
+            </div>
+            <div className="panel__body runloop">
+              <ol className="runloop__list">
+                {STEPS.map((step, index) => (
+                  <li className={`runloop__item${index >= 3 ? " runloop__item--amber" : ""}`} key={step.t}>
+                    <span className="runloop__n">{String(index + 1).padStart(2, "0")}</span>
+                    <div>
+                      <div className="runloop__name">{step.t}</div>
+                      <p className="runloop__desc">{step.d}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+              <div className="runloop__loop">
+                <span className="runloop__name">Revision</span>
+                <p className="runloop__desc">
+                  loops back to tool call or LLM call until the critic passes, or the step ceiling is reached.
+                </p>
+              </div>
+              <p className="runloop__caption">The five step types a run is built from, drawn in the order a plan executes them.</p>
+            </div>
+          </section>
+        </aside>
+      </div>
+
+      <section>
+        <div className="reference">
+          <div className="reference__group">
+            <div className="timeline-head">
+              <h2>Core concepts</h2>
+            </div>
+            <div className="reference__list">
+              {CONCEPTS.map((concept) => (
+                <div className="reference__item" key={concept.t}>
+                  <h3 className="reference__term">{concept.t}</h3>
+                  <p className="reference__desc">{concept.d}</p>
                 </div>
               ))}
             </div>
           </div>
-        </section>
-      )}
-
-      <section className="plate">
-        <div className="container">
-          <div className="plate__head">
-            <h2>Recent runs</h2>
+          <div className="reference__group">
+            <div className="timeline-head">
+              <h2>Design philosophy</h2>
+            </div>
+            <div className="reference__list">
+              {PRINCIPLES.map((principle) => (
+                <div className="reference__item" key={principle.t}>
+                  <h3 className="reference__term">{principle.t}</h3>
+                  <p className="reference__desc">{principle.d}</p>
+                </div>
+              ))}
+            </div>
+            <div className="statement">
+              <p className="statement__line">
+                A clear separation between orchestration and infrastructure, so either can be rebuilt without the other.
+              </p>
+              <div className="statement__actions">
+                <Link href="/docs/design-decisions" className="btn btn--quiet">
+                  Read the ADRs
+                </Link>
+              </div>
+            </div>
           </div>
-          {err && <p className="reg__err">API unreachable. View traces manually.</p>}
-          {runs.length > 0 ? (
-            <table className="reg">
-              <thead>
-                <tr>
-                  <th>Task</th>
-                  <th className="reg__hide">Duration</th>
-                  <th className="reg__hide">Cost</th>
-                  <th>Steps</th>
-                </tr>
-              </thead>
-              <tbody>
-                {runs.slice(0, 5).map((r) => (
-                  <tr key={r.run_id}>
-                    <td>
-                      <Link href={`/traces/${r.run_id}`} className="reg__task">
-                        {r.task.slice(0, 60)}
-                      </Link>
-                    </td>
-                    <td className="reg__hide">
-                      <span className="reg__num">{fmtMs(r.duration_ms)}</span>
-                    </td>
-                    <td className="reg__hide">
-                      <span className="reg__num">{fmtUsd(r.cost_usd)}</span>
-                    </td>
-                    <td>
-                      <span className="reg__num">{r.n_steps}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="reg__empty">No traces yet. POST a task to the API to create one.</p>
-          )}
         </div>
       </section>
-    </>
+    </div>
   );
 }
