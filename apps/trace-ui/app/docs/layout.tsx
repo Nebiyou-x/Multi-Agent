@@ -6,17 +6,17 @@ import { useState } from "react";
 
 const DOCS_NAV = [
   { label: "Overview", href: "/docs" },
-  { label: "Getting Started", href: "/docs/getting-started" },
+  { label: "Getting started", href: "/docs/getting-started" },
   {
     label: "Usage",
     children: [
-      { label: "Running a Task", href: "/docs/running-a-task" },
+      { label: "Running a task", href: "/docs/running-a-task" },
       { label: "Tools", href: "/docs/tools" },
       { label: "Sandbox", href: "/docs/sandbox" },
     ],
   },
   { label: "Architecture", href: "/docs/architecture" },
-  { label: "Design Decisions", href: "/docs/design-decisions" },
+  { label: "Design decisions", href: "/docs/design-decisions" },
   {
     label: "Evaluation",
     children: [
@@ -32,40 +32,40 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex flex-col sm:flex-row gap-8 mx-auto w-full max-w-7xl px-6 py-10">
-      <aside className={`${mobileOpen ? "block" : "hidden"} sm:block sm:w-56 flex-shrink-0`}>
-        <nav className="space-y-1 sticky top-24">
+    <div className="shell docs-shell">
+      <button
+        type="button"
+        className="btn btn--quiet btn--small docs-mobile-toggle"
+        aria-expanded={mobileOpen}
+        aria-controls="docs-nav"
+        onClick={() => setMobileOpen(!mobileOpen)}
+      >
+        {mobileOpen ? "Close docs menu" : "Docs menu"}
+      </button>
+
+      <aside className={`docs-side${mobileOpen ? " is-open" : ""}`}>
+        <nav id="docs-nav" className="docs-nav" aria-label="Documentation">
           {DOCS_NAV.map((item) =>
             item.children ? (
-              <div key={item.label}>
-                <div className="px-3 py-2 text-xs font-semibold text-neutral-500 uppercase tracking-wider mt-4">
-                  {item.label}
-                </div>
-                <div className="space-y-1 pl-2">
-                  {item.children.map((child) => (
-                    <Link
-                      key={child.href}
-                      href={child.href}
-                      className={`block px-3 py-2 text-sm rounded transition-colors ${
-                        pathname === child.href
-                          ? "bg-indigo-600/20 text-indigo-300 font-medium"
-                          : "text-neutral-400 hover:text-neutral-100 hover:bg-neutral-900/30"
-                      }`}
-                    >
-                      {child.label}
-                    </Link>
-                  ))}
-                </div>
+              <div key={item.label} className="docs-nav__group">
+                <div className="docs-nav__label">{item.label}</div>
+                {item.children.map((child) => (
+                  <Link
+                    key={child.href}
+                    href={child.href}
+                    className="docs-nav__link"
+                    aria-current={pathname === child.href ? "page" : undefined}
+                  >
+                    {child.label}
+                  </Link>
+                ))}
               </div>
             ) : (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`block px-3 py-2 text-sm rounded transition-colors ${
-                  pathname === item.href
-                    ? "bg-indigo-600/20 text-indigo-300 font-medium"
-                    : "text-neutral-400 hover:text-neutral-100 hover:bg-neutral-900/30"
-                }`}
+                className="docs-nav__link"
+                aria-current={pathname === item.href ? "page" : undefined}
               >
                 {item.label}
               </Link>
@@ -74,18 +74,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
         </nav>
       </aside>
 
-      <button
-        onClick={() => setMobileOpen(!mobileOpen)}
-        className="sm:hidden mb-4 px-3 py-2 text-sm text-neutral-400 border border-neutral-700 rounded hover:text-neutral-100"
-      >
-        {mobileOpen ? "Close menu" : "Open menu"}
-      </button>
-
-      <div className="flex-1 min-w-0">
-        <div className="prose prose-invert max-w-none text-neutral-300">
-          {children}
-        </div>
-      </div>
+      <div className="docs-main">{children}</div>
     </div>
   );
 }
