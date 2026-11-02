@@ -2,6 +2,8 @@
 __pycache__/
 *.py[codz]
 *$py.class
+.agents/
+.claude/
 
 # C extensions
 *.so
@@ -15,6 +17,7 @@ downloads/
 eggs/
 .eggs/
 lib/
+!apps/trace-ui/lib/
 lib64/
 parts/
 sdist/
