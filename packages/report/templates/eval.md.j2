@@ -1,0 +1,54 @@
+# Eval — {{ report.config_id }}
+
+- model: {{ report.model }} ({{ report.provider }})
+- prompt v{{ report.prompt_version }} · dataset v{{ report.dataset_version }}
+- config hash `{{ report.config_hash }}` · {{ report.timestamp }}
+
+## Aggregate
+
+| pass rate | avg cost | avg latency | p50 | p95 | tasks |
+| --- | --- | --- | --- | --- | --- |
+| {{ pass_rate }} | {{ avg_cost }} | {{ avg_latency }} | {{ p50 }} | {{ p95 }} | {{ report.n_tasks }} |
+
+{% if baseline %}
+### vs baseline {{ baseline.config_id }}
+
+| | this | baseline |
+| --- | --- | --- |
+| pass rate | {{ pass_rate }} | {{ baseline_pass_rate }} |
+| avg cost | {{ avg_cost }} | {{ baseline_avg_cost }} |
+
+{% endif %}
+{% if regressions %}
+## Regressions (PASS -> FAIL)
+
+{% for t in regressions %}
+- `{{ t.task }}` — {{ t.scorer }}: {{ t.detail or "failed" }}
+{% endfor %}
+
+{% endif %}
+{% if improvements %}
+## Improvements (FAIL -> PASS)
+
+{% for t in improvements %}
+- `{{ t.task }}` — {{ t.scorer }}
+{% endfor %}
+
+{% endif %}
+## Per task
+
+| task | scorer | result | score | cost | latency |
+| --- | --- | --- | --- | --- | --- |
+{% for row in rows %}
+| {{ row.task }} | {{ row.scorer }} | {{ row.result }} | {{ "%.2f"|format(row.score) }} | {{ row.cost }} | {{ row.latency }} |
+{% endfor %}
+
+## Charts
+
+{% for c in charts %}
+![]({{ c.rel }})
+{% endfor %}
+
+---
+
+config hash `{{ report.config_hash }}` · report {{ gen_version }} · {{ timestamp }}

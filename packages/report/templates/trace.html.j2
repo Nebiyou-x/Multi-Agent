@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trace {{ trace.run_id[:8] }} — {{ trace.task[:40] }}</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#11161d; --panel2:#161d26; --ink:#e8edf3; --ink2:#c3ccd6;
+    --muted:#8794a3; --rule:#2a333f; --accent:#ffb454; --accent2:#4f9dff; --ok:#5bd6a2; --bad:#ff7b7b;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{overflow-x:clip}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--sans);padding:32px}
+  .wrap{max-width:880px;margin:0 auto}
+  h1{font-size:24px;line-height:1.15;margin:0 0 6px}
+  h2{font-size:16px;margin:28px 0 12px;color:var(--ink)}
+  .meta{color:var(--muted);font-size:14px;margin:0 0 20px}
+  .badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600}
+  .badge.succeeded{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+  .badge.failed{background:color-mix(in srgb,var(--bad) 18%,transparent);color:var(--bad)}
+  .badge.timeout{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent)}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:10px;overflow:hidden;margin:0 0 24px}
+  .kpis>div{background:var(--panel);padding:12px 14px}
+  .kpis .v{font-family:var(--mono);font-size:15px;color:var(--ink)}
+  .kpis .l{font-size:11px;color:var(--muted)}
+  .step{border-left:2px solid var(--rule);padding:0 0 14px 16px;position:relative}
+  .step .dot{position:absolute;left:-5px;top:2px;width:8px;height:8px;border-radius:50%;background:var(--accent2)}
+  .step.plan .dot{background:var(--accent)}
+  .head{font-size:13px;color:var(--ink2);margin:0 0 6px}
+  .head .type{font-family:var(--mono);font-size:11px;background:var(--panel2);border:1px solid var(--rule);padding:1px 7px;border-radius:5px;margin-left:6px}
+  .head .nums{float:right;font-family:var(--mono);font-size:11px;color:var(--muted)}
+  pre{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:10px 12px;overflow:auto;max-height:480px;font-family:var(--mono);font-size:12.5px;line-height:1.5;color:var(--ink2);margin:6px 0;white-space:pre-wrap}
+  .sum{font-size:13px;color:var(--muted);margin:4px 0}
+  .lbl{font-size:12px;color:var(--muted);margin:6px 0 2px}
+  .err{color:var(--bad);font-family:var(--mono);font-size:12px}
+  .vbadge{display:inline-block;padding:1px 9px;border-radius:6px;font-weight:700;font-size:12px}
+  .vbadge.PASS{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+  .vbadge.REVISE{background:color-mix(in srgb,var(--bad) 18%,transparent);color:var(--bad)}
+  figure.art{margin:10px 0}
+  figure.art img{max-width:100%;border:1px solid var(--rule);border-radius:8px;display:block}
+  figure.art figcaption{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:4px}
+  .final{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:16px;margin-top:8px}
+  .final p{white-space:pre-wrap;margin:0 0 8px}
+  footer{margin-top:32px;padding-top:12px;border-top:1px solid var(--rule);font-family:var(--mono);font-size:11px;color:var(--muted)}
+  @media(max-width:560px){.kpis{grid-template-columns:repeat(2,1fr)}.head .nums{float:none;display:block;margin-top:4px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>{{ trace.task }}</h1>
+  <div class="meta">
+    <span class="badge {{ trace.status }}">{{ trace.status }}</span>
+    &nbsp;{{ trace.model or "unknown" }}{% if trace.provider %} ({{ trace.provider }}){% endif %}
+  </div>
+  <div class="kpis">
+    <div><div class="v">{{ total_ms }}</div><div class="l">duration</div></div>
+    <div><div class="v">{{ total_cost }}</div><div class="l">cost</div></div>
+    <div><div class="v">{{ n_steps }}</div><div class="l">steps</div></div>
+    <div><div class="v">{{ tok_in }}/{{ tok_out }}</div><div class="l">tokens in/out</div></div>
+  </div>
+
+  <h2>Timeline</h2>
+  {% for b in blocks %}
+  <div class="step {{ b.type }}" style="margin-left:{{ b.depth * 22 }}px">
+    <span class="dot"></span>
+    <div class="head">
+      <b>step {{ b.step.step_id }}</b><span class="type">{{ b.type }}</span>
+      {% if b.step.name %} · {{ b.step.name }}{% endif %}
+      <span class="nums">{{ b.step.tokens.in }}/{{ b.step.tokens.out }} tok · {{ b.step.latency_ms }} ms · ${{ "%0.4f"|format(b.step.cost_usd) }}</span>
+    </div>
+    {% if b.type == "plan" %}
+      <pre>{{ b.body_json }}</pre>
+    {% elif b.type == "tool_call" %}
+      <div class="lbl">input</div>
+      <pre>{{ b.input_json }}</pre>
+      <div class="sum">output — {{ b.summary }}</div>
+    {% elif b.type == "llm_call" %}
+      <div class="sum">prompt — sha256 <code>{{ b.prompt_hash }}</code>{{ b.prompt_note }}</div>
+      <div class="lbl">output</div>
+      {% if b.has_out_text %}<pre>{{ b.out_text }}</pre>{% else %}<pre>{{ b.out_json }}</pre>{% endif %}
+    {% elif b.type == "code_exec" %}
+      {% if b.code %}<div class="lbl">code ({{ b.lang }})</div><pre>{{ b.code }}</pre>{% endif %}
+      {% if b.stdout %}<div class="lbl">stdout</div><pre>{{ b.stdout }}</pre>{% endif %}
+      {% if b.stderr %}<div class="lbl">stderr</div><pre>{{ b.stderr }}</pre>{% endif %}
+      {% if b.exit_code != 0 %}<div class="err">exit code {{ b.exit_code }}</div>{% endif %}
+      {% for a in b.artifacts %}
+        {% if a.data_url %}
+        <figure class="art"><img src="{{ a.data_url }}" alt="{{ a.name }}"><figcaption>{{ a.name }} · {{ a.size }} bytes</figcaption></figure>
+        {% else %}
+        <p class="sum">artifact: <code>{{ a.name }}</code> ({{ a.mime }})</p>
+        {% endif %}
+      {% endfor %}
+    {% elif b.type == "critique" %}
+      <span class="vbadge {{ b.verdict }}">{{ b.verdict }}</span>
+      {% if b.feedback %}<p class="sum">{{ b.feedback }}</p>{% endif %}
+    {% elif b.type == "revision" %}
+      {% if b.rev_text %}<pre>{{ b.rev_text }}</pre>{% else %}<pre>{{ b.out_json }}</pre>{% endif %}
+    {% endif %}
+    {% if b.step.error %}<div class="err">{{ b.step.error }}</div>{% endif %}
+  </div>
+  {% endfor %}
+
+  <h2>Final output</h2>
+  <div class="final">
+    {% if final_answer %}<p>{{ final_answer }}</p>{% endif %}
+    {{ final_artifacts_html }}
+    {% if show_final_json %}<pre style="margin-bottom:0">{{ final_json }}</pre>{% endif %}
+  </div>
+
+  <footer>run {{ trace.run_id }} · schema v{{ schema_version }} · report {{ gen_version }} · finished {{ timestamp }}</footer>
+</div>
+</body>
+</html>

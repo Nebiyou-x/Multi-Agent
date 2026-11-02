@@ -1,0 +1,23 @@
+# Trace — {{ trace.task[:60] }}
+
+- status: **{{ trace.status }}**
+- model: {{ trace.model or "unknown" }}{% if trace.provider %} ({{ trace.provider }}){% endif %}
+- duration: {{ total_ms }} · cost: ${{ "%.4f"|format(total_cost) }} · steps: {{ n_steps }} · tokens: {{ tok_in }} in / {{ tok_out }} out
+- run: `{{ trace.run_id }}`
+
+## Timeline
+
+{% for b in steps %}
+{{ b.head }}
+{% for line in b.body %}
+  {{ line }}
+{% endfor %}
+
+{% endfor %}
+## Final output
+
+{{ final_body }}
+
+---
+
+run `{{ trace.run_id }}` · schema v{{ schema_version }} · report {{ gen_version }} · finished {{ timestamp }}
