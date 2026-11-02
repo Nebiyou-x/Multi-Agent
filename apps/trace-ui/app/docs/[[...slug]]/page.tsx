@@ -4,78 +4,35 @@ import remarkGfm from "remark-gfm";
 import { getDoc, getDocsIndex } from "@/lib/docs";
 
 const markdownComponents: Components = {
-  h1: ({ children }) => (
-    <h1 className="text-4xl font-bold mb-6 mt-8 first:mt-0">{children}</h1>
-  ),
-  h2: ({ children }) => (
-    <h2 className="text-2xl font-bold mb-4 mt-10 border-b border-neutral-800 pb-2">
-      {children}
-    </h2>
-  ),
-  h3: ({ children }) => (
-    <h3 className="text-xl font-semibold mb-3 mt-6">{children}</h3>
-  ),
-  h4: ({ children }) => (
-    <h4 className="text-lg font-semibold mb-2 mt-5">{children}</h4>
-  ),
-  p: ({ children }) => (
-    <p className="mb-4 text-neutral-300 leading-relaxed max-w-2xl">{children}</p>
-  ),
-  ul: ({ children }) => (
-    <ul className="list-disc list-outside mb-4 ml-5 space-y-2 text-neutral-300 max-w-2xl">
-      {children}
-    </ul>
-  ),
-  ol: ({ children }) => (
-    <ol className="list-decimal list-outside mb-4 ml-5 space-y-2 text-neutral-300 max-w-2xl">
-      {children}
-    </ol>
-  ),
-  li: ({ children }) => <li className="pl-1 leading-relaxed">{children}</li>,
-  blockquote: ({ children }) => (
-    <blockquote className="border-l-4 border-indigo-500 pl-4 italic text-neutral-400 my-4">
-      {children}
-    </blockquote>
-  ),
+  h1: ({ children }) => <h1 className="docs-h1">{children}</h1>,
+  h2: ({ children }) => <h2 className="docs-h2">{children}</h2>,
+  h3: ({ children }) => <h3 className="docs-h3">{children}</h3>,
+  h4: ({ children }) => <h4 className="docs-h4">{children}</h4>,
+  p: ({ children }) => <p className="docs-p">{children}</p>,
+  ul: ({ children }) => <ul className="docs-md-list">{children}</ul>,
+  ol: ({ children }) => <ol className="docs-md-list">{children}</ol>,
+  li: ({ children }) => <li>{children}</li>,
+  blockquote: ({ children }) => <blockquote className="docs-blockquote">{children}</blockquote>,
   a: ({ href, children }) => (
-    <a
-      href={href}
-      className="text-indigo-300 underline underline-offset-2 hover:text-indigo-200"
-    >
+    <a href={href} className="docs-link">
       {children}
     </a>
   ),
-  code: ({ className, children }) => (
-    <code className={className}>{children}</code>
-  ),
-  pre: ({ children }) => (
-    <pre className="bg-neutral-900 p-4 rounded-lg overflow-x-auto mb-6 text-sm font-mono text-neutral-300">
-      {children}
-    </pre>
-  ),
+  code: ({ className, children }) =>
+    className ? <code className={className}>{children}</code> : <code className="docs-code">{children}</code>,
+  pre: ({ children }) => <pre className="docs-pre">{children}</pre>,
   table: ({ children }) => (
-    <div className="overflow-x-auto mb-6">
-      <table className="w-full border-collapse text-sm text-left">{children}</table>
+    <div className="docs-table-wrap">
+      <table className="docs-table">{children}</table>
     </div>
   ),
-  thead: ({ children }) => (
-    <thead className="border-b border-neutral-700">{children}</thead>
-  ),
-  th: ({ children }) => (
-    <th className="py-2 pr-6 font-semibold text-neutral-100 whitespace-nowrap">
-      {children}
-    </th>
-  ),
-  td: ({ children }) => (
-    <td className="py-2 pr-6 align-top text-neutral-300 border-t border-neutral-800">
-      {children}
-    </td>
-  ),
-  hr: () => <hr className="my-8 border-neutral-800" />,
-  strong: ({ children }) => (
-    <strong className="font-semibold text-neutral-100">{children}</strong>
-  ),
-  em: ({ children }) => <em className="italic text-neutral-200">{children}</em>,
+  thead: ({ children }) => <thead>{children}</thead>,
+  th: ({ children }) => <th>{children}</th>,
+  td: ({ children }) => <td>{children}</td>,
+  hr: () => <hr className="docs-hr" />,
+  strong: ({ children }) => <strong className="docs-strong">{children}</strong>,
+  em: ({ children }) => <em className="docs-em">{children}</em>,
+  img: ({ src, alt }) => <img src={src} alt={alt ?? ""} className="docs-img" />,
 };
 
 export function generateStaticParams() {
@@ -89,23 +46,18 @@ function DocsIndex() {
   const docs = getDocsIndex();
 
   return (
-    <div className="max-w-3xl">
-      <h1 className="text-4xl font-bold mb-6 mt-8 first:mt-0">Documentation</h1>
-      <p className="mb-8 text-neutral-300 leading-relaxed max-w-2xl">
+    <div className="docs-content">
+      <h1 className="docs-h1">Documentation</h1>
+      <p className="docs-p">
         How Agent Forge runs a task, isolates generated code, records traces, and evaluates a configuration.
       </p>
-      <ul className="divide-y divide-neutral-800 border-t border-neutral-800">
+      <ul className="doc-index">
         {docs.map((doc) => (
-          <li key={doc.slug} className="py-5">
-            <Link
-              href={`/docs/${doc.slug}`}
-              className="text-lg font-semibold text-neutral-100 underline decoration-neutral-700 underline-offset-4 hover:decoration-neutral-100"
-            >
+          <li key={doc.slug} className="doc-index__item">
+            <Link href={`/docs/${doc.slug}`} className="doc-index__title">
               {doc.title}
             </Link>
-            {doc.summary && (
-              <p className="mt-2 text-neutral-400 leading-relaxed">{doc.summary}</p>
-            )}
+            {doc.summary && <p className="doc-index__summary">{doc.summary}</p>}
           </li>
         ))}
       </ul>
@@ -126,15 +78,15 @@ export default async function Page({
     if (slug === "index") return <DocsIndex />;
 
     return (
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-bold mb-2">Page not found</h1>
-        <p className="text-neutral-400">The documentation page &quot;{slug}&quot; does not exist.</p>
+      <div className="empty">
+        <h1 className="empty__title">Page not found</h1>
+        <p className="empty__line">The documentation page &quot;{slug}&quot; does not exist.</p>
       </div>
     );
   }
 
   return (
-    <div className="docs-md max-w-3xl">
+    <div className="docs-md docs-content">
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
         {doc.body}
       </ReactMarkdown>

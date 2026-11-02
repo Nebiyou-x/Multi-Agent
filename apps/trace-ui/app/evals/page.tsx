@@ -40,42 +40,56 @@ export default function EvalsPage() {
   const evals = listEvals().sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-6 py-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Evaluation Results</h1>
-        <p className="text-neutral-400">
-          Committed eval reports show aggregate pass rates, per-task scores, regressions, and cost/latency analysis.
-        </p>
+    <div className="shell page">
+      <div className="page-head">
+        <div>
+          <h1 className="page-head__title">Evaluation results</h1>
+          <p className="page-head__line">
+            Committed eval reports show aggregate pass rates, per-task scores, regressions, and cost/latency analysis.
+          </p>
+          <p className="page-head__meta">
+            {evals.length} {evals.length === 1 ? "committed report" : "committed reports"}
+          </p>
+        </div>
       </div>
 
       {evals.length === 0 ? (
-        <div className="rounded-lg border border-neutral-800 p-8 text-center">
-          <p className="text-neutral-400">No evaluation reports yet.</p>
+        <div className="empty">
+          <h2 className="empty__title">No evaluation reports yet</h2>
+          <p className="empty__line">Committed eval reports appear here once an evaluation run finishes.</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {evals.map((eval_) => (
-            <Link
-              key={eval_.name}
-              href={`/evals/${eval_.name}`}
-              className="group p-6 rounded-lg border border-neutral-800 bg-neutral-950/40 hover:border-indigo-600/50 hover:bg-neutral-900/60 transition-all flex items-center justify-between"
-            >
-              <div>
-                <h3 className="font-semibold text-lg group-hover:text-indigo-300 transition-colors mb-1">
-                  {eval_.name}
-                </h3>
-                <div className="text-xs text-neutral-500">
-                  {new Date(eval_.timestamp).toLocaleDateString()}
-                </div>
-              </div>
-              {eval_.passRate !== undefined && (
-                <div className="text-right">
-                  <div className="font-mono text-xl font-bold text-green-400">{eval_.passRate}%</div>
-                  <div className="text-xs text-neutral-500">pass rate</div>
-                </div>
-              )}
-            </Link>
-          ))}
+        <div className="table-scroll">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Report</th>
+                <th className="num-right">Pass rate</th>
+                <th className="num-right">Recorded</th>
+              </tr>
+            </thead>
+            <tbody>
+              {evals.map((eval_) => (
+                <tr key={eval_.name}>
+                  <td>
+                    <Link href={`/evals/${eval_.name}`} className="table__task">
+                      {eval_.name}
+                    </Link>
+                  </td>
+                  <td className="num-right">
+                    {eval_.passRate !== undefined ? (
+                      <span className="table__num">{eval_.passRate}%</span>
+                    ) : (
+                      <span className="table__id">n/a</span>
+                    )}
+                  </td>
+                  <td className="num-right">
+                    <span className="table__num">{new Date(eval_.timestamp).toLocaleDateString()}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

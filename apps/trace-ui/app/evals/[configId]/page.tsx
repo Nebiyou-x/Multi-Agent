@@ -47,18 +47,23 @@ function listCharts(): string[] {
   }
 }
 
-export default function EvalDetailPage({ params }: { params: { configId: string } }) {
-  const evalData = loadEval(params.configId);
+export default async function EvalDetailPage({ params }: { params: Promise<{ configId: string }> }) {
+  const { configId } = await params;
+  const evalData = loadEval(configId);
 
   if (!evalData) {
     return (
-      <div className="mx-auto w-full max-w-7xl px-6 py-10">
-        <div className="text-center py-12">
-          <h1 className="text-2xl font-bold mb-2">Evaluation not found</h1>
-          <p className="text-neutral-400 mb-6">Config: {params.configId}</p>
-          <Link href="/evals" className="text-indigo-400 hover:text-indigo-300">
-            ← Back to evals
-          </Link>
+      <div className="shell page">
+        <div className="empty">
+          <h1 className="empty__title">Evaluation not found</h1>
+          <p className="empty__line">
+            Config <span className="empty__path">{configId}</span>
+          </p>
+          <div className="empty__actions">
+            <Link href="/evals" className="btn btn--quiet">
+              Back to evals
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -68,91 +73,108 @@ export default function EvalDetailPage({ params }: { params: { configId: string 
   const passRate = (passedCount / evalData.results.length * 100).toFixed(1);
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-6 py-10">
-      <Link href="/evals" className="mb-6 text-indigo-400 hover:text-indigo-300 text-sm">
-        ← Back to evals
-      </Link>
-
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">{params.configId}</h1>
-        <div className="flex flex-wrap gap-4 text-sm text-neutral-400 font-mono">
-          <span>Model: {evalData.model}</span>
-          <span>Dataset: {evalData.dataset}</span>
-          <span>{new Date(evalData.timestamp).toLocaleDateString()}</span>
+    <div className="shell page">
+      <div className="page-head">
+        <div>
+          <h1 className="page-head__title">{configId}</h1>
+          <div className="meta">
+            <div className="meta__item">
+              <span className="meta__label">Model</span>
+              <span className="meta__value">{evalData.model}</span>
+            </div>
+            <div className="meta__item">
+              <span className="meta__label">Dataset</span>
+              <span className="meta__value">{evalData.dataset}</span>
+            </div>
+            <div className="meta__item">
+              <span className="meta__label">Recorded</span>
+              <span className="meta__value">{new Date(evalData.timestamp).toLocaleDateString()}</span>
+            </div>
+          </div>
+        </div>
+        <div className="page-head__actions">
+          <Link href="/evals" className="btn btn--quiet">
+            Back to evals
+          </Link>
         </div>
       </div>
 
-      <div className="grid gap-4 grid-cols-2 sm:grid-cols-5 mb-8">
-        <div className="p-4 rounded-lg border border-neutral-800 bg-neutral-950/40">
-          <div className="text-xs text-neutral-500 mb-1">Pass rate</div>
-          <div className="font-mono text-2xl text-green-400 font-bold">{passRate}%</div>
-          <div className="text-xs text-neutral-500 mt-1">{passedCount}/{evalData.results.length}</div>
+      <div className={`metrics${evalData.aggregate ? " metrics--five" : " metrics--three"}`}>
+        <div className="metric">
+          <span className="metric__value">{passRate}%</span>
+          <span className="metric__label">
+            Pass rate, {passedCount} of {evalData.results.length}
+          </span>
         </div>
         {evalData.aggregate && (
           <>
-            <div className="p-4 rounded-lg border border-neutral-800 bg-neutral-950/40">
-              <div className="text-xs text-neutral-500 mb-1">Avg cost</div>
-              <div className="font-mono text-lg">${evalData.aggregate.avg_cost.toFixed(4)}</div>
+            <div className="metric">
+              <span className="metric__value">${evalData.aggregate.avg_cost.toFixed(4)}</span>
+              <span className="metric__label">Average cost</span>
             </div>
-            <div className="p-4 rounded-lg border border-neutral-800 bg-neutral-950/40">
-              <div className="text-xs text-neutral-500 mb-1">Avg latency</div>
-              <div className="font-mono text-lg">{(evalData.aggregate.avg_latency / 1000).toFixed(2)}s</div>
+            <div className="metric">
+              <span className="metric__value">{(evalData.aggregate.avg_latency / 1000).toFixed(2)}s</span>
+              <span className="metric__label">Average latency</span>
             </div>
-            <div className="p-4 rounded-lg border border-neutral-800 bg-neutral-950/40">
-              <div className="text-xs text-neutral-500 mb-1">P50 latency</div>
-              <div className="font-mono text-lg">{(evalData.aggregate.p50_latency / 1000).toFixed(2)}s</div>
+            <div className="metric">
+              <span className="metric__value">{(evalData.aggregate.p50_latency / 1000).toFixed(2)}s</span>
+              <span className="metric__label">P50 latency</span>
             </div>
-            <div className="p-4 rounded-lg border border-neutral-800 bg-neutral-950/40">
-              <div className="text-xs text-neutral-500 mb-1">P95 latency</div>
-              <div className="font-mono text-lg">{(evalData.aggregate.p95_latency / 1000).toFixed(2)}s</div>
+            <div className="metric">
+              <span className="metric__value">{(evalData.aggregate.p95_latency / 1000).toFixed(2)}s</span>
+              <span className="metric__label">P95 latency</span>
             </div>
           </>
         )}
       </div>
 
-      <div className="mb-8">
-        <h2 className="text-xl font-bold mb-4">Results by task</h2>
-        <div className="overflow-x-auto rounded-lg border border-neutral-800 bg-neutral-950/40">
-          <table className="w-full text-left text-sm">
+      <section className="final-output">
+        <div className="timeline-head">
+          <h2>Results by task</h2>
+        </div>
+        <div className="table-scroll">
+          <table className="table">
             <thead>
-              <tr className="border-b border-neutral-800 text-[11px] uppercase tracking-wider text-neutral-600">
-                <th className="px-4 py-3">Task</th>
-                <th className="px-4 py-3">Scorer</th>
-                <th className="px-4 py-3">Result</th>
-                <th className="px-4 py-3">Score</th>
-                <th className="px-4 py-3">Cost</th>
-                <th className="px-4 py-3">Latency</th>
+              <tr>
+                <th>Task</th>
+                <th>Scorer</th>
+                <th>Result</th>
+                <th className="num-right">Score</th>
+                <th className="num-right">Cost</th>
+                <th className="num-right">Latency</th>
               </tr>
             </thead>
             <tbody>
               {evalData.results.map((result, idx) => (
-                <tr key={idx} className="border-b border-neutral-800/50 hover:bg-neutral-900/30 transition-colors">
-                  <td className="px-4 py-3 text-neutral-300">{result.task}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-neutral-500">{result.scorer || "—"}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-block px-2 py-1 text-xs font-medium rounded ${
-                        result.passed
-                          ? "bg-green-600/20 text-green-300"
-                          : "bg-red-600/20 text-red-300"
-                      }`}
-                    >
-                      {result.passed ? "PASS" : "FAIL"}
+                <tr key={idx}>
+                  <td>{result.task}</td>
+                  <td>
+                    <span className="table__id">{result.scorer || "n/a"}</span>
+                  </td>
+                  <td>
+                    <span className={`chip ${result.passed ? "chip--ok" : "chip--bad"}`}>
+                      {result.passed ? "Pass" : "Fail"}
                     </span>
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs">{result.score?.toFixed(2) || "—"}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-neutral-500">
-                    {result.cost_usd ? `$${result.cost_usd.toFixed(4)}` : "—"}
+                  <td className="num-right">
+                    <span className="table__num">{result.score?.toFixed(2) || "n/a"}</span>
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs text-neutral-500">
-                    {result.latency_ms ? `${(result.latency_ms / 1000).toFixed(2)}s` : "—"}
+                  <td className="num-right">
+                    <span className="table__num">
+                      {result.cost_usd ? `$${result.cost_usd.toFixed(4)}` : "n/a"}
+                    </span>
+                  </td>
+                  <td className="num-right">
+                    <span className="table__num">
+                      {result.latency_ms ? `${(result.latency_ms / 1000).toFixed(2)}s` : "n/a"}
+                    </span>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
