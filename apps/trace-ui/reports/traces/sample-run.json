@@ -1,0 +1,13 @@
+{
+  "run_id": "sample-run",
+  "task": "Summarise World Bank inflation data for Ethiopia and chart the trend",
+  "status": "succeeded",
+  "timestamp": "2026-10-30T12:00:00.000Z",
+  "final_output": { "answer": "Ethiopian inflation eased to 19.9% in 2024 from 30.2% in 2023. The chart shows the annual series.", "artifacts": ["/artifacts/sample-run/inflation.png"] },
+  "steps": [
+    { "step_id": 1, "parent_step_id": null, "type": "plan", "tool_name": "planner", "input": { "task": "Summarise inflation" }, "output": { "subtasks": ["fetch series", "chart series", "critique draft"] }, "tokens": { "in": 512, "out": 208 }, "latency_ms": 1240, "cost_usd": 0.0021 },
+    { "step_id": 2, "parent_step_id": 1, "type": "tool_call", "tool_name": "http_fetch", "input": { "url": "https://api.worldbank.org/v2/country/ET" }, "output": { "result": "19.9 percent annual inflation", "artifacts": [{ "name": "inflation.png", "mime": "image/png" }] }, "tokens": { "in": 120, "out": 60 }, "latency_ms": 830, "cost_usd": 0.0004 },
+    { "step_id": 3, "parent_step_id": 1, "type": "critique", "tool_name": "critic", "input": {}, "output": { "verdict": "REVISE", "feedback": "Cite the source year and add the previous year for comparison.", "score": 0.72 }, "tokens": { "in": 340, "out": 96 }, "latency_ms": 620, "cost_usd": 0.0009 },
+    { "step_id": 4, "parent_step_id": null, "type": "revision", "tool_name": "reviser", "input": { "feedback": "Cite the source year" }, "output": { "revised": "Ethiopian inflation eased to 19.9% in 2024 from 30.2% in 2023, per the World Bank." }, "tokens": { "in": 260, "out": 140 }, "latency_ms": 710, "cost_usd": 0.0007 }
+  ]
+}
