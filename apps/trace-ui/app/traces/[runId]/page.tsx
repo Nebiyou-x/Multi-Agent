@@ -44,34 +44,40 @@ function formatLatency(ms: number) {
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
-function StepBadge({ type }: { type: string }) {
-  const colors: Record<string, string> = {
-    plan: "bg-blue-600/20 text-blue-300",
-    tool_call: "bg-purple-600/20 text-purple-300",
-    llm_call: "bg-indigo-600/20 text-indigo-300",
-    code_exec: "bg-green-600/20 text-green-300",
-    critique: "bg-orange-600/20 text-orange-300",
-    revision: "bg-yellow-600/20 text-yellow-300",
-  };
-  return (
-    <span className={`inline-block px-2 py-1 text-xs font-medium rounded ${colors[type] || "bg-neutral-700/40 text-neutral-400"}`}>
-      {type.replace(/_/g, " ")}
-    </span>
-  );
+function typeTone(type: string) {
+  if (type === "critique" || type === "revision") return "chip--amber";
+  if (type === "plan" || type === "tool_call" || type === "llm_call" || type === "code_exec") return "chip--cool";
+  return "chip--muted";
 }
 
-export default function TraceDetailPage({ params }: { params: { runId: string } }) {
-  const trace = loadTrace(params.runId);
+function statusTone(status: string) {
+  if (status === "succeeded") return "chip--ok";
+  if (status === "failed") return "chip--bad";
+  if (status === "running") return "chip--amber";
+  return "chip--muted";
+}
+
+function StepBadge({ type }: { type: string }) {
+  return <span className={`chip ${typeTone(type)}`}>{type.replace(/_/g, " ")}</span>;
+}
+
+export default async function TraceDetailPage({ params }: { params: Promise<{ runId: string }> }) {
+  const { runId } = await params;
+  const trace = loadTrace(runId);
 
   if (!trace) {
     return (
-      <div className="mx-auto w-full max-w-7xl px-6 py-10">
-        <div className="text-center py-12">
-          <h1 className="text-2xl font-bold mb-2">Trace not found</h1>
-          <p className="text-neutral-400 mb-6">Run ID: {params.runId}</p>
-          <Link href="/traces" className="text-indigo-400 hover:text-indigo-300">
-            ← Back to traces
-          </Link>
+      <div className="shell page">
+        <div className="empty">
+          <h1 className="empty__title">Trace not found</h1>
+          <p className="empty__line">
+            Run ID <span className="empty__path">{runId}</span>
+          </p>
+          <div className="empty__actions">
+            <Link href="/traces" className="btn btn--quiet">
+              Back to traces
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -85,116 +91,133 @@ export default function TraceDetailPage({ params }: { params: { runId: string } 
     trace.steps.filter((s) => (s.parent_step_id || undefined) === parentId);
 
   const renderStep = (step: Step, level = 0) => (
-    <div key={step.step_id} className="mb-4">
-      <div className="flex items-start gap-4 p-4 rounded-lg border border-neutral-800 bg-neutral-950/40">
-        <div className="flex-shrink-0">
-          <StepBadge type={step.type} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="font-mono text-xs text-neutral-500">#{step.step_id}</span>
-            {step.tool_name && <span className="font-mono text-xs text-indigo-400">{step.tool_name}</span>}
+    <div key={step.step_id} className="trail__item">
+      <div className="trail__rail" aria-hidden="true">
+        <span className={`trail__dot ${typeTone(step.type) === "chip--amber" ? "swatch--amber" : "swatch--cool"}`} />
+      </div>
+      <div className="trail__body">
+        <article className="step">
+          <div className="step__head">
+            <span className="step__id">#{step.step_id}</span>
+            <StepBadge type={step.type} />
+            {step.tool_name && <span className="step__name">{step.tool_name}</span>}
           </div>
+          <div className="step__body">
+            {step.input && Object.keys(step.input).length > 0 && (
+              <div className="step__block">
+                <div className="step__label">Input</div>
+                <pre className="step__pre">{JSON.stringify(step.input, null, 2)}</pre>
+              </div>
+            )}
 
-          {step.input && Object.keys(step.input).length > 0 && (
-            <div className="mb-3 text-sm">
-              <div className="text-xs text-neutral-500 mb-1">Input:</div>
-              <pre className="bg-neutral-900/50 p-2 rounded text-xs overflow-x-auto text-neutral-300">
-                {JSON.stringify(step.input, null, 2)}
-              </pre>
+            {step.output && Object.keys(step.output).length > 0 && (
+              <div className="step__block">
+                <div className="step__label">Output</div>
+                <pre className="step__pre">{JSON.stringify(step.output, null, 2)}</pre>
+              </div>
+            )}
+
+            <div className="step__meta">
+              <span>
+                latency <span className="mono">{formatLatency(step.latency_ms)}</span>
+              </span>
+              <span>
+                cost <span className="mono">{formatCost(step.cost_usd)}</span>
+              </span>
+              {step.tokens && (
+                <span>
+                  tokens{" "}
+                  <span className="mono">
+                    {step.tokens.in} in / {step.tokens.out} out
+                  </span>
+                </span>
+              )}
             </div>
-          )}
 
-          {step.output && Object.keys(step.output).length > 0 && (
-            <div className="mb-3 text-sm">
-              <div className="text-xs text-neutral-500 mb-1">Output:</div>
-              <pre className="bg-neutral-900/50 p-2 rounded text-xs overflow-x-auto text-neutral-300">
-                {JSON.stringify(step.output, null, 2)}
-              </pre>
-            </div>
-          )}
-
-          <div className="flex gap-6 text-xs text-neutral-500 font-mono">
-            <span>⏱ {formatLatency(step.latency_ms)}</span>
-            <span>💰 {formatCost(step.cost_usd)}</span>
-            {step.tokens && <span>📝 {step.tokens.in} in · {step.tokens.out} out</span>}
-          </div>
-
-          {step.artifacts && step.artifacts.length > 0 && (
-            <div className="mt-3 text-sm">
-              <div className="text-xs text-neutral-500 mb-2">Artifacts:</div>
-              <div className="space-y-2">
+            {step.artifacts && step.artifacts.length > 0 && (
+              <div className="step__artifacts">
+                <div className="step__label">Artifacts</div>
                 {step.artifacts.map((artifact, idx) => (
-                  <div key={idx} className="text-xs">
+                  <div key={idx} className="step__artifact">
                     {artifact.data_base64 && artifact.mime.startsWith("image/") ? (
                       <img
                         src={`data:${artifact.mime};base64,${artifact.data_base64}`}
                         alt={artifact.name}
-                        className="max-w-sm rounded border border-neutral-700"
                       />
                     ) : (
-                      <span className="text-neutral-500">{artifact.name} ({artifact.mime})</span>
+                      <span className="step__artifact-name">
+                        {artifact.name} ({artifact.mime})
+                      </span>
                     )}
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-        </div>
-      </div>
+            )}
+          </div>
+        </article>
 
-      {buildStepTree(step.step_id).length > 0 && (
-        <div className="ml-6 border-l border-neutral-800 pl-4 mt-2 mb-4">
-          {buildStepTree(step.step_id).map((child) => renderStep(child, level + 1))}
-        </div>
-      )}
+        {buildStepTree(step.step_id).length > 0 && (
+          <div className="trail__children">
+            {buildStepTree(step.step_id).map((child) => renderStep(child, level + 1))}
+          </div>
+        )}
+      </div>
     </div>
   );
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-6 py-10">
-      <Link href="/traces" className="mb-6 text-indigo-400 hover:text-indigo-300 text-sm">
-        ← Back to traces
-      </Link>
-
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">{trace.task}</h1>
-        <div className="flex flex-wrap gap-4 text-sm text-neutral-400">
-          <span className="font-mono">{trace.run_id}</span>
-          <span>Status: {trace.status}</span>
+    <div className="shell page">
+      <div className="page-head">
+        <div>
+          <h1 className="page-head__title">{trace.task}</h1>
+          <div className="trace-head__meta">
+            <span className="mono">{trace.run_id}</span>
+            <span className={`chip ${statusTone(trace.status)}`}>{trace.status}</span>
+          </div>
+        </div>
+        <div className="page-head__actions">
+          <Link href="/traces" className="btn btn--quiet">
+            Back to traces
+          </Link>
         </div>
       </div>
 
-      <div className="grid gap-4 grid-cols-2 sm:grid-cols-4 mb-8">
-        <div className="p-4 rounded-lg border border-neutral-800 bg-neutral-950/40">
-          <div className="text-xs text-neutral-500 mb-1">Duration</div>
-          <div className="font-mono text-lg">{formatLatency(totalLatency)}</div>
+      <div className="metrics trace-metrics">
+        <div className="metric">
+          <span className="metric__value">{formatLatency(totalLatency)}</span>
+          <span className="metric__label">Duration</span>
         </div>
-        <div className="p-4 rounded-lg border border-neutral-800 bg-neutral-950/40">
-          <div className="text-xs text-neutral-500 mb-1">Cost</div>
-          <div className="font-mono text-lg">{formatCost(totalCost)}</div>
+        <div className="metric">
+          <span className="metric__value">{formatCost(totalCost)}</span>
+          <span className="metric__label">Cost</span>
         </div>
-        <div className="p-4 rounded-lg border border-neutral-800 bg-neutral-950/40">
-          <div className="text-xs text-neutral-500 mb-1">Steps</div>
-          <div className="font-mono text-lg">{trace.steps.length}</div>
+        <div className="metric">
+          <span className="metric__value">{trace.steps.length}</span>
+          <span className="metric__label">Steps</span>
         </div>
-        <div className="p-4 rounded-lg border border-neutral-800 bg-neutral-950/40">
-          <div className="text-xs text-neutral-500 mb-1">Tokens</div>
-          <div className="font-mono text-lg">{totalTokens.toLocaleString()}</div>
+        <div className="metric">
+          <span className="metric__value">{totalTokens.toLocaleString()}</span>
+          <span className="metric__label">Tokens</span>
         </div>
       </div>
 
-      <div className="mb-8">
-        <h2 className="text-xl font-bold mb-4">Timeline</h2>
-        <div>{buildStepTree().map((step) => renderStep(step))}</div>
-      </div>
+      <section>
+        <div className="timeline-head">
+          <h2>Timeline</h2>
+        </div>
+        <div className="trail">{buildStepTree().map((step) => renderStep(step))}</div>
+      </section>
 
-      <div className="mb-8">
-        <h2 className="text-xl font-bold mb-4">Final output</h2>
-        <pre className="bg-neutral-900/50 p-4 rounded text-sm overflow-x-auto text-neutral-300">
-          {JSON.stringify(trace.final_output, null, 2)}
-        </pre>
-      </div>
+      <section className="final-output">
+        <div className="timeline-head">
+          <h2>Final output</h2>
+        </div>
+        <div className="panel">
+          <div className="panel__body">
+            <pre className="step__pre">{JSON.stringify(trace.final_output, null, 2)}</pre>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

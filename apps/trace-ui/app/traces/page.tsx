@@ -40,35 +40,54 @@ export default function TracesPage() {
   const traces = listTraces();
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-6 py-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Traces</h1>
-        <p className="text-neutral-400">
-          Committed trace reports show every step: plans, tool calls, LLM outputs, critiques, and revisions.
-        </p>
+    <div className="shell page">
+      <div className="page-head">
+        <div>
+          <h1 className="page-head__title">Traces</h1>
+          <p className="page-head__line">
+            Committed trace reports show every step: plans, tool calls, LLM outputs, critiques, and revisions.
+          </p>
+          <p className="page-head__meta">
+            {traces.length} {traces.length === 1 ? "committed trace" : "committed traces"}
+          </p>
+        </div>
       </div>
 
       {traces.length === 0 ? (
-        <div className="rounded-lg border border-neutral-800 p-8 text-center">
-          <p className="text-neutral-400">No traces yet. Generate traces by running Agent Forge tasks.</p>
+        <div className="empty">
+          <h2 className="empty__title">No traces yet</h2>
+          <p className="empty__line">Generate traces by running Agent Forge tasks.</p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {traces.map((trace) => (
-            <Link
-              key={trace.runId}
-              href={`/traces/${trace.runId}`}
-              className="group p-6 rounded-lg border border-neutral-800 bg-neutral-950/40 hover:border-indigo-600/50 hover:bg-neutral-900/60 transition-all"
-            >
-              <div className="font-mono text-xs text-neutral-500 mb-2">{trace.name}</div>
-              <h3 className="font-semibold text-lg group-hover:text-indigo-300 transition-colors mb-2 line-clamp-2">
-                {trace.task}
-              </h3>
-              <div className="text-xs text-neutral-500">
-                {formatDistanceToNow(parseISO(trace.timestamp), { addSuffix: true })}
-              </div>
-            </Link>
-          ))}
+        <div className="table-scroll">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Report</th>
+                <th>Task</th>
+                <th className="num-right">Recorded</th>
+              </tr>
+            </thead>
+            <tbody>
+              {traces.map((trace) => (
+                <tr key={trace.runId}>
+                  <td>
+                    <span className="table__id">{trace.name}</span>
+                  </td>
+                  <td>
+                    <Link href={`/traces/${trace.runId}`} className="table__task">
+                      {trace.task}
+                    </Link>
+                  </td>
+                  <td className="num-right">
+                    <span className="table__num">
+                      {formatDistanceToNow(parseISO(trace.timestamp), { addSuffix: true })}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
