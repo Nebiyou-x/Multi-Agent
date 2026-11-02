@@ -24,6 +24,8 @@ class TraceRun(BaseModel):
     run_id: str = Field(default_factory=lambda: str(uuid4()))
     task: str
     status: RunStatus = "running"
+    provider: Optional[str] = None  # LLM provider used for this run (replay tracking)
+    model: Optional[str] = None     # LLM model used for this run
     steps: List[TraceStep] = Field(default_factory=list)
     final_output: Optional[Any] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
