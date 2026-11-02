@@ -5,6 +5,8 @@ CREATE TABLE runs (
     task TEXT NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('running','succeeded','failed','timeout')),
     final_output JSONB,
+    provider TEXT,
+    model TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -13,6 +15,7 @@ CREATE TABLE steps (
     step_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     run_id UUID REFERENCES runs(run_id) ON DELETE CASCADE,
     parent_step_id UUID REFERENCES steps(step_id),
+    seq INT,
     type TEXT NOT NULL,
     name TEXT NOT NULL,
     input JSONB,
