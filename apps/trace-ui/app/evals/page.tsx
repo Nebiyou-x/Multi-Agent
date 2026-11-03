@@ -17,10 +17,14 @@ function listEvals(): EvalFile[] {
       .map((file) => {
         try {
           const content = readFileSync(join(evalsDir, file), "utf-8");
-          const data = JSON.parse(content);
-          const passCount = data.results?.filter((r: any) => r.passed).length || 0;
-          const totalCount = data.results?.length || 0;
-          const passRate = totalCount > 0 ? (passCount / totalCount * 100).toFixed(1) : null;
+          const data = JSON.parse(content) as {
+  timestamp?: string;
+  results?: Array<{ passed?: boolean }>;
+};
+          const results = Array.isArray(data.results) ? data.results : [];
+          const passCount = results.filter((r) => r.passed).length;
+          const totalCount = results.length;
+          const passRate = totalCount > 0 ? ((passCount / totalCount) * 100).toFixed(1) : null;
           return {
             name: file.replace(".json", ""),
             timestamp: data.timestamp || new Date().toISOString(),
@@ -38,6 +42,7 @@ function listEvals(): EvalFile[] {
 
 export default function EvalsPage() {
   const evals = listEvals().sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
 
   return (
     <div className="shell page">

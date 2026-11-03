@@ -6,8 +6,8 @@ interface Step {
   step_id: number;
   type: string;
   tool_name?: string;
-  input: Record<string, any>;
-  output: Record<string, any>;
+  input: Record<string, unknown>;
+  output: Record<string, unknown>;
   tokens: { in: number; out: number };
   latency_ms: number;
   cost_usd: number;
@@ -20,7 +20,7 @@ interface Trace {
   task: string;
   steps: Step[];
   status: string;
-  final_output: Record<string, any>;
+  final_output: Record<string, unknown>;
   timestamp: string;
 }
 

@@ -52,29 +52,35 @@ function RunLoading() {
 }
 
 export default function HomePage({ docs }: { docs: DocLink[] }) {
-  const [runs, setRuns] = useState<RunSummary[]>([]);
-  const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [reloadKey, setReloadKey] = useState(0);
+const [runs, setRuns] = useState<RunSummary[]>([]);
+const [err, setErr] = useState<string | null>(null);
+const [loading, setLoading] = useState(true);
+const [reloadKey, setReloadKey] = useState(0);
 
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    setErr(null);
-    listRuns(50)
-      .then((data) => {
-        if (active) setRuns(data);
-      })
-      .catch((error) => {
-        if (active) setErr(String(error));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [reloadKey]);
+ const reload = () => {
+  setLoading(true);
+  setErr(null);
+  setReloadKey((k) => k + 1);
+};
+
+useEffect(() => {
+  let active = true;
+  listRuns(50)
+    .then((data) => {
+      if (active) setRuns(data);
+    })
+    .catch((error) => {
+      if (active) setErr(String(error));
+    })
+    .finally(() => {
+      if (active) setLoading(false);
+    });
+  return () => {
+    active = false;
+  };
+}, [reloadKey]);
+
+
 
   const latestRun = useMemo(() => runs[0], [runs]);
 
@@ -115,7 +121,7 @@ export default function HomePage({ docs }: { docs: DocLink[] }) {
                   <p className="empty__line">The workbench could not read runs from <span className="empty__path">{API}</span>.</p>
                   <p className="empty__path">{err}</p>
                   <div className="empty__actions">
-                    <button type="button" className="btn btn--primary" onClick={() => setReloadKey((value) => value + 1)}>
+                    <button type="button" className="btn btn--primary" onClick={reload}>
                       Try again
                     </button>
                     <Link href="/traces" className="btn btn--quiet">
