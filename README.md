@@ -441,10 +441,6 @@ MAX_MEMORY_MB=1024
 - [Architecture Deep Dive](docs/architecture.md) — System design details
 - [Tool Development Guide](docs/tools.md) — Creating custom agent tools
 
-## License
 
-[License information here]
-
----
 
 **Built for autonomous execution with safety, observability, and precision.**
