@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { readFileSync, readdirSync } from "fs";
 import { join } from "path";
 import Link from "next/link";
@@ -47,33 +48,35 @@ function listCharts(): string[] {
   }
 }
 
-export default async function EvalDetailPage({ params }: { params: Promise<{ configId: string }> }) {
+async function EvalDetailContent({
+  params,
+}: {
+  params: Promise<{ configId: string }>;
+}) {
   const { configId } = await params;
   const evalData = loadEval(configId);
 
   if (!evalData) {
     return (
-      <div className="shell page">
-        <div className="empty">
-          <h1 className="empty__title">Evaluation not found</h1>
-          <p className="empty__line">
-            Config <span className="empty__path">{configId}</span>
-          </p>
-          <div className="empty__actions">
-            <Link href="/evals" className="btn btn--quiet">
-              Back to evals
-            </Link>
-          </div>
+      <div className="empty">
+        <h1 className="empty__title">Evaluation not found</h1>
+        <p className="empty__line">
+          Config <span className="empty__path">{configId}</span>
+        </p>
+        <div className="empty__actions">
+          <Link href="/evals" className="btn btn--quiet">
+            Back to evals
+          </Link>
         </div>
       </div>
     );
   }
 
   const passedCount = evalData.results.filter((r) => r.passed).length;
-  const passRate = (passedCount / evalData.results.length * 100).toFixed(1);
+  const passRate = ((passedCount / evalData.results.length) * 100).toFixed(1);
 
   return (
-    <div className="shell page">
+    <>
       <div className="page-head">
         <div>
           <h1 className="page-head__title">{configId}</h1>
@@ -88,7 +91,9 @@ export default async function EvalDetailPage({ params }: { params: Promise<{ con
             </div>
             <div className="meta__item">
               <span className="meta__label">Recorded</span>
-              <span className="meta__value">{new Date(evalData.timestamp).toLocaleDateString()}</span>
+              <span className="meta__value">
+                {new Date(evalData.timestamp).toLocaleDateString()}
+              </span>
             </div>
           </div>
         </div>
@@ -99,7 +104,11 @@ export default async function EvalDetailPage({ params }: { params: Promise<{ con
         </div>
       </div>
 
-      <div className={`metrics${evalData.aggregate ? " metrics--five" : " metrics--three"}`}>
+      <div
+        className={`metrics${
+          evalData.aggregate ? " metrics--five" : " metrics--three"
+        }`}
+      >
         <div className="metric">
           <span className="metric__value">{passRate}%</span>
           <span className="metric__label">
@@ -109,19 +118,27 @@ export default async function EvalDetailPage({ params }: { params: Promise<{ con
         {evalData.aggregate && (
           <>
             <div className="metric">
-              <span className="metric__value">${evalData.aggregate.avg_cost.toFixed(4)}</span>
+              <span className="metric__value">
+                ${evalData.aggregate.avg_cost.toFixed(4)}
+              </span>
               <span className="metric__label">Average cost</span>
             </div>
             <div className="metric">
-              <span className="metric__value">{(evalData.aggregate.avg_latency / 1000).toFixed(2)}s</span>
+              <span className="metric__value">
+                {(evalData.aggregate.avg_latency / 1000).toFixed(2)}s
+              </span>
               <span className="metric__label">Average latency</span>
             </div>
             <div className="metric">
-              <span className="metric__value">{(evalData.aggregate.p50_latency / 1000).toFixed(2)}s</span>
+              <span className="metric__value">
+                {(evalData.aggregate.p50_latency / 1000).toFixed(2)}s
+              </span>
               <span className="metric__label">P50 latency</span>
             </div>
             <div className="metric">
-              <span className="metric__value">{(evalData.aggregate.p95_latency / 1000).toFixed(2)}s</span>
+              <span className="metric__value">
+                {(evalData.aggregate.p95_latency / 1000).toFixed(2)}s
+              </span>
               <span className="metric__label">P95 latency</span>
             </div>
           </>
@@ -152,21 +169,31 @@ export default async function EvalDetailPage({ params }: { params: Promise<{ con
                     <span className="table__id">{result.scorer || "n/a"}</span>
                   </td>
                   <td>
-                    <span className={`chip ${result.passed ? "chip--ok" : "chip--bad"}`}>
+                    <span
+                      className={`chip ${
+                        result.passed ? "chip--ok" : "chip--bad"
+                      }`}
+                    >
                       {result.passed ? "Pass" : "Fail"}
                     </span>
                   </td>
                   <td className="num-right">
-                    <span className="table__num">{result.score?.toFixed(2) || "n/a"}</span>
-                  </td>
-                  <td className="num-right">
                     <span className="table__num">
-                      {result.cost_usd ? `$${result.cost_usd.toFixed(4)}` : "n/a"}
+                      {result.score?.toFixed(2) || "n/a"}
                     </span>
                   </td>
                   <td className="num-right">
                     <span className="table__num">
-                      {result.latency_ms ? `${(result.latency_ms / 1000).toFixed(2)}s` : "n/a"}
+                      {result.cost_usd
+                        ? `$${result.cost_usd.toFixed(4)}`
+                        : "n/a"}
+                    </span>
+                  </td>
+                  <td className="num-right">
+                    <span className="table__num">
+                      {result.latency_ms
+                        ? `${(result.latency_ms / 1000).toFixed(2)}s`
+                        : "n/a"}
                     </span>
                   </td>
                 </tr>
@@ -175,6 +202,20 @@ export default async function EvalDetailPage({ params }: { params: Promise<{ con
           </table>
         </div>
       </section>
+    </>
+  );
+}
+
+export default function EvalDetailPage({
+  params,
+}: {
+  params: Promise<{ configId: string }>;
+}) {
+  return (
+    <div className="shell page">
+      <Suspense fallback={<p className="empty__line">Loading evaluation…</p>}>
+        <EvalDetailContent params={params} />
+      </Suspense>
     </div>
   );
 }

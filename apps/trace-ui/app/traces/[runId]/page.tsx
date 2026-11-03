@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { readFileSync } from "fs";
 import { join } from "path";
 import Link from "next/link";
@@ -46,7 +47,13 @@ function formatLatency(ms: number) {
 
 function typeTone(type: string) {
   if (type === "critique" || type === "revision") return "chip--amber";
-  if (type === "plan" || type === "tool_call" || type === "llm_call" || type === "code_exec") return "chip--cool";
+  if (
+    type === "plan" ||
+    type === "tool_call" ||
+    type === "llm_call" ||
+    type === "code_exec"
+  )
+    return "chip--cool";
   return "chip--muted";
 }
 
@@ -61,23 +68,25 @@ function StepBadge({ type }: { type: string }) {
   return <span className={`chip ${typeTone(type)}`}>{type.replace(/_/g, " ")}</span>;
 }
 
-export default async function TraceDetailPage({ params }: { params: Promise<{ runId: string }> }) {
+async function TraceDetailContent({
+  params,
+}: {
+  params: Promise<{ runId: string }>;
+}) {
   const { runId } = await params;
   const trace = loadTrace(runId);
 
   if (!trace) {
     return (
-      <div className="shell page">
-        <div className="empty">
-          <h1 className="empty__title">Trace not found</h1>
-          <p className="empty__line">
-            Run ID <span className="empty__path">{runId}</span>
-          </p>
-          <div className="empty__actions">
-            <Link href="/traces" className="btn btn--quiet">
-              Back to traces
-            </Link>
-          </div>
+      <div className="empty">
+        <h1 className="empty__title">Trace not found</h1>
+        <p className="empty__line">
+          Run ID <span className="empty__path">{runId}</span>
+        </p>
+        <div className="empty__actions">
+          <Link href="/traces" className="btn btn--quiet">
+            Back to traces
+          </Link>
         </div>
       </div>
     );
@@ -85,7 +94,10 @@ export default async function TraceDetailPage({ params }: { params: Promise<{ ru
 
   const totalCost = trace.steps.reduce((sum, s) => sum + s.cost_usd, 0);
   const totalLatency = trace.steps.reduce((sum, s) => sum + s.latency_ms, 0);
-  const totalTokens = trace.steps.reduce((sum, s) => sum + (s.tokens?.in || 0) + (s.tokens?.out || 0), 0);
+  const totalTokens = trace.steps.reduce(
+    (sum, s) => sum + (s.tokens?.in || 0) + (s.tokens?.out || 0),
+    0,
+  );
 
   const buildStepTree = (parentId?: number) =>
     trace.steps.filter((s) => (s.parent_step_id || undefined) === parentId);
@@ -93,7 +105,11 @@ export default async function TraceDetailPage({ params }: { params: Promise<{ ru
   const renderStep = (step: Step, level = 0) => (
     <div key={step.step_id} className="trail__item">
       <div className="trail__rail" aria-hidden="true">
-        <span className={`trail__dot ${typeTone(step.type) === "chip--amber" ? "swatch--amber" : "swatch--cool"}`} />
+        <span
+          className={`trail__dot ${
+            typeTone(step.type) === "chip--amber" ? "swatch--amber" : "swatch--cool"
+          }`}
+        />
       </div>
       <div className="trail__body">
         <article className="step">
@@ -106,20 +122,25 @@ export default async function TraceDetailPage({ params }: { params: Promise<{ ru
             {step.input && Object.keys(step.input).length > 0 && (
               <div className="step__block">
                 <div className="step__label">Input</div>
-                <pre className="step__pre">{JSON.stringify(step.input, null, 2)}</pre>
+                <pre className="step__pre">
+                  {JSON.stringify(step.input, null, 2)}
+                </pre>
               </div>
             )}
 
             {step.output && Object.keys(step.output).length > 0 && (
               <div className="step__block">
                 <div className="step__label">Output</div>
-                <pre className="step__pre">{JSON.stringify(step.output, null, 2)}</pre>
+                <pre className="step__pre">
+                  {JSON.stringify(step.output, null, 2)}
+                </pre>
               </div>
             )}
 
             <div className="step__meta">
               <span>
-                latency <span className="mono">{formatLatency(step.latency_ms)}</span>
+                latency{" "}
+                <span className="mono">{formatLatency(step.latency_ms)}</span>
               </span>
               <span>
                 cost <span className="mono">{formatCost(step.cost_usd)}</span>
@@ -140,6 +161,7 @@ export default async function TraceDetailPage({ params }: { params: Promise<{ ru
                 {step.artifacts.map((artifact, idx) => (
                   <div key={idx} className="step__artifact">
                     {artifact.data_base64 && artifact.mime.startsWith("image/") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={`data:${artifact.mime};base64,${artifact.data_base64}`}
                         alt={artifact.name}
@@ -158,7 +180,9 @@ export default async function TraceDetailPage({ params }: { params: Promise<{ ru
 
         {buildStepTree(step.step_id).length > 0 && (
           <div className="trail__children">
-            {buildStepTree(step.step_id).map((child) => renderStep(child, level + 1))}
+            {buildStepTree(step.step_id).map((child) =>
+              renderStep(child, level + 1),
+            )}
           </div>
         )}
       </div>
@@ -166,13 +190,15 @@ export default async function TraceDetailPage({ params }: { params: Promise<{ ru
   );
 
   return (
-    <div className="shell page">
+    <>
       <div className="page-head">
         <div>
           <h1 className="page-head__title">{trace.task}</h1>
           <div className="trace-head__meta">
             <span className="mono">{trace.run_id}</span>
-            <span className={`chip ${statusTone(trace.status)}`}>{trace.status}</span>
+            <span className={`chip ${statusTone(trace.status)}`}>
+              {trace.status}
+            </span>
           </div>
         </div>
         <div className="page-head__actions">
@@ -196,7 +222,9 @@ export default async function TraceDetailPage({ params }: { params: Promise<{ ru
           <span className="metric__label">Steps</span>
         </div>
         <div className="metric">
-          <span className="metric__value">{totalTokens.toLocaleString()}</span>
+          <span className="metric__value">
+            {totalTokens.toLocaleString()}
+          </span>
           <span className="metric__label">Tokens</span>
         </div>
       </div>
@@ -205,7 +233,9 @@ export default async function TraceDetailPage({ params }: { params: Promise<{ ru
         <div className="timeline-head">
           <h2>Timeline</h2>
         </div>
-        <div className="trail">{buildStepTree().map((step) => renderStep(step))}</div>
+        <div className="trail">
+          {buildStepTree().map((step) => renderStep(step))}
+        </div>
       </section>
 
       <section className="final-output">
@@ -214,10 +244,26 @@ export default async function TraceDetailPage({ params }: { params: Promise<{ ru
         </div>
         <div className="panel">
           <div className="panel__body">
-            <pre className="step__pre">{JSON.stringify(trace.final_output, null, 2)}</pre>
+            <pre className="step__pre">
+              {JSON.stringify(trace.final_output, null, 2)}
+            </pre>
           </div>
         </div>
       </section>
+    </>
+  );
+}
+
+export default function TraceDetailPage({
+  params,
+}: {
+  params: Promise<{ runId: string }>;
+}) {
+  return (
+    <div className="shell page">
+      <Suspense fallback={<p className="empty__line">Loading trace…</p>}>
+        <TraceDetailContent params={params} />
+      </Suspense>
     </div>
   );
 }

@@ -1,7 +1,8 @@
+import { Suspense } from "react";
 import { readdirSync, readFileSync } from "fs";
 import { join } from "path";
 import Link from "next/link";
-import { formatDistanceToNow, parseISO } from "date-fns";
+import { RelativeTime } from "@/components/RelativeTime";
 
 interface TraceFile {
   name: string;
@@ -30,7 +31,7 @@ function listTraces(): TraceFile[] {
           return null;
         }
       })
-      .filter(Boolean) as TraceFile[];
+      .filter((x): x is TraceFile => x !== null);
   } catch {
     return [];
   }
@@ -81,7 +82,9 @@ export default function TracesPage() {
                   </td>
                   <td className="num-right">
                     <span className="table__num">
-                      {formatDistanceToNow(parseISO(trace.timestamp), { addSuffix: true })}
+                      <Suspense fallback={<span>—</span>}>
+                        <RelativeTime iso={trace.timestamp} />
+                      </Suspense>
                     </span>
                   </td>
                 </tr>
