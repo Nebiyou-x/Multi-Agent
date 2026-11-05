@@ -1,0 +1,369 @@
+{
+  "run_id": "eval_d3bd3327_20261105_105605",
+  "config_hash": "d3bd3327",
+  "config": {
+    "model": "gpt-4",
+    "version": "1.0"
+  },
+  "timestamp": "2026-11-05T07:56:07.484151",
+  "duration_seconds": 1.9376990795135498,
+  "results": [
+    {
+      "task_id": "da_001",
+      "task": "Fetch CSV from https://example.com/iris.csv, compute mean/median of sepal_length, generate a histogram, save chart to /out/histogram.png",
+      "category": "data_analysis",
+      "status": "PASS",
+      "score": 0.8333333333333333,
+      "details": [
+        {
+          "scorer": "schema_valid",
+          "passed": true,
+          "score": 1.0,
+          "details": "Schema validation passed"
+        },
+        {
+          "scorer": "schema_valid",
+          "passed": false,
+          "score": 0.0,
+          "details": "No schema provided"
+        },
+        {
+          "scorer": "code_passes_tests",
+          "passed": true,
+          "score": 1.0,
+          "details": "Tests: 3/3"
+        },
+        {
+          "scorer": "numeric_tolerance",
+          "passed": true,
+          "score": 1.0,
+          "details": "Numeric match: 2/2"
+        }
+      ],
+      "cost_usd": 0.001,
+      "latency_ms": 409.3739986419678,
+      "error": null,
+      "output": "{\"status\": \"success\", \"stats\": {\"mean\": 5.843, \"median\": 5.8}, \"artifacts\": [\"histogram.png\"], \"test_results\": {\"passed\": 3, \"total\": 3}}"
+    },
+    {
+      "task_id": "da_002",
+      "task": "Fetch population.json, filter countries with pop > 1M, calculate regional summary stats, save results.json",
+      "category": "data_analysis",
+      "status": "FAIL",
+      "score": 0.0,
+      "details": [
+        {
+          "scorer": "schema_valid",
+          "passed": false,
+          "score": 0.0,
+          "details": "Schema validation failed: 'summary' is a required property"
+        },
+        {
+          "scorer": "schema_valid",
+          "passed": false,
+          "score": 0.0,
+          "details": "No schema provided"
+        },
+        {
+          "scorer": "numeric_tolerance",
+          "passed": false,
+          "score": 0.0,
+          "details": "No reference value provided"
+        },
+        {
+          "scorer": "file_exists",
+          "passed": false,
+          "score": 0.0,
+          "details": "Files found: 0/3"
+        }
+      ],
+      "cost_usd": 0.002,
+      "latency_ms": 412.24193572998047,
+      "error": null,
+      "output": "{\"status\": \"success\", \"stats\": {\"mean\": 5.843, \"median\": 5.8}, \"artifacts\": [\"histogram.png\"], \"test_results\": {\"passed\": 3, \"total\": 3}}"
+    },
+    {
+      "task_id": "mhr_001",
+      "task": "Search for 'Claude 3.5 capabilities', fetch top 3 results, synthesize findings into a short paragraph, save to /out/summary.md",
+      "category": "multi_hop_research",
+      "status": "FAIL",
+      "score": 0.6666666666666666,
+      "details": [
+        {
+          "scorer": "schema_valid",
+          "passed": true,
+          "score": 1.0,
+          "details": "Schema validation passed"
+        },
+        {
+          "scorer": "schema_valid",
+          "passed": false,
+          "score": 0.0,
+          "details": "No schema provided"
+        },
+        {
+          "scorer": "citation_quality",
+          "passed": false,
+          "score": 0.5,
+          "details": "Citations found: 0"
+        },
+        {
+          "scorer": "output_length",
+          "passed": true,
+          "score": 0.52,
+          "details": "Length: 104 chars (min: 100)"
+        }
+      ],
+      "cost_usd": 0.003,
+      "latency_ms": 416.6300296783447,
+      "error": null,
+      "output": "{\"status\": \"success\", \"summary\": \"This is a detailed research summary with proper citations and sources mentioned throughout the analysis.\", \"sources_cited\": 3, \"artifacts\": [\"summary.md\"]}"
+    },
+    {
+      "task_id": "mhr_002",
+      "task": "Search for 'agent-based systems benchmarks', fetch 3 papers, extract key metrics, generate a comparison table",
+      "category": "multi_hop_research",
+      "status": "FAIL",
+      "score": 0.0,
+      "details": [
+        {
+          "scorer": "schema_valid",
+          "passed": false,
+          "score": 0.0,
+          "details": "Schema validation failed: 'metrics' is a required property"
+        },
+        {
+          "scorer": "schema_valid",
+          "passed": false,
+          "score": 0.0,
+          "details": "No schema provided"
+        },
+        {
+          "scorer": "numeric_tolerance",
+          "passed": false,
+          "score": 0.0,
+          "details": "No reference value provided"
+        }
+      ],
+      "cost_usd": 0.004,
+      "latency_ms": 421.6420650482178,
+      "error": null,
+      "output": "{\"status\": \"success\", \"summary\": \"This is a detailed research summary with proper citations and sources mentioned throughout the analysis.\", \"sources_cited\": 3, \"artifacts\": [\"summary.md\"]}"
+    },
+    {
+      "task_id": "ce_001",
+      "task": "Write Python code to implement Fibonacci sequence (first 20 terms), save to /out/fib.py, test correctness",
+      "category": "code_execution",
+      "status": "FAIL",
+      "score": 0.0,
+      "details": [
+        {
+          "scorer": "schema_valid",
+          "passed": false,
+          "score": 0.0,
+          "details": "Schema validation failed: 'tests_passed' is a required property"
+        },
+        {
+          "scorer": "schema_valid",
+          "passed": false,
+          "score": 0.0,
+          "details": "No schema provided"
+        },
+        {
+          "scorer": "code_passes_tests",
+          "passed": false,
+          "score": 0.6666666666666666,
+          "details": "Tests: 2/3"
+        },
+        {
+          "scorer": "exact_match",
+          "passed": false,
+          "score": 0.0,
+          "details": "Mismatch"
+        }
+      ],
+      "cost_usd": 0.005,
+      "latency_ms": 943.4380531311035,
+      "error": null,
+      "output": "{\"status\": \"success\", \"code_file\": \"script.py\", \"test_results\": {\"passed\": 2, \"total\": 3}, \"sorted\": [1, 1, 2, 3, 4, 5, 6, 9], \"fib_20th\": 6765}"
+    },
+    {
+      "task_id": "ce_002",
+      "task": "Implement quicksort, test on [3,1,4,1,5,9,2,6], verify sorted output and performance",
+      "category": "code_execution",
+      "status": "FAIL",
+      "score": 0.0,
+      "details": [
+        {
+          "scorer": "schema_valid",
+          "passed": false,
+          "score": 0.0,
+          "details": "Schema validation failed: 'algorithm' is a required property"
+        },
+        {
+          "scorer": "schema_valid",
+          "passed": false,
+          "score": 0.0,
+          "details": "No schema provided"
+        },
+        {
+          "scorer": "code_passes_tests",
+          "passed": false,
+          "score": 0.6666666666666666,
+          "details": "Tests: 2/3"
+        },
+        {
+          "scorer": "exact_match",
+          "passed": false,
+          "score": 0.0,
+          "details": "Mismatch"
+        }
+      ],
+      "cost_usd": 0.006,
+      "latency_ms": 975.881814956665,
+      "error": null,
+      "output": "{\"status\": \"success\", \"code_file\": \"script.py\", \"test_results\": {\"passed\": 2, \"total\": 3}, \"sorted\": [1, 1, 2, 3, 4, 5, 6, 9], \"fib_20th\": 6765}"
+    },
+    {
+      "task_id": "da_003",
+      "task": "Generate 1000 random samples from normal distribution (mean=100, std=15), compute quartiles, create boxplot, save analysis.json",
+      "category": "data_analysis",
+      "status": "FAIL",
+      "score": 0.0,
+      "details": [
+        {
+          "scorer": "schema_valid",
+          "passed": false,
+          "score": 0.0,
+          "details": "Schema validation failed: 'q1' is a required property"
+        },
+        {
+          "scorer": "schema_valid",
+          "passed": false,
+          "score": 0.0,
+          "details": "No schema provided"
+        },
+        {
+          "scorer": "numeric_tolerance",
+          "passed": false,
+          "score": 0.0,
+          "details": "No reference value provided"
+        },
+        {
+          "scorer": "numeric_tolerance",
+          "passed": false,
+          "score": 0.0,
+          "details": "No reference value provided"
+        }
+      ],
+      "cost_usd": 0.007,
+      "latency_ms": 988.1820678710938,
+      "error": null,
+      "output": "{\"status\": \"success\", \"stats\": {\"mean\": 5.843, \"median\": 5.8}, \"artifacts\": [\"histogram.png\"], \"test_results\": {\"passed\": 3, \"total\": 3}}"
+    },
+    {
+      "task_id": "mhr_003",
+      "task": "Research 'machine learning performance benchmarks', fetch 2+ sources, extract benchmark scores, generate comparison",
+      "category": "multi_hop_research",
+      "status": "FAIL",
+      "score": 0.0,
+      "details": [
+        {
+          "scorer": "schema_valid",
+          "passed": false,
+          "score": 0.0,
+          "details": "Schema validation failed: 'benchmarks' is a required property"
+        },
+        {
+          "scorer": "schema_valid",
+          "passed": false,
+          "score": 0.0,
+          "details": "No schema provided"
+        },
+        {
+          "scorer": "numeric_tolerance",
+          "passed": false,
+          "score": 0.0,
+          "details": "No reference value provided"
+        },
+        {
+          "scorer": "file_exists",
+          "passed": false,
+          "score": 0.0,
+          "details": "Files found: 0/3"
+        }
+      ],
+      "cost_usd": 0.008,
+      "latency_ms": 997.1349239349365,
+      "error": null,
+      "output": "{\"status\": \"success\", \"summary\": \"This is a detailed research summary with proper citations and sources mentioned throughout the analysis.\", \"sources_cited\": 3, \"artifacts\": [\"summary.md\"]}"
+    },
+    {
+      "task_id": "ce_003",
+      "task": "Read CSV with columns [id, name, score], filter score >= 80, write to /out/filtered.csv, validate output",
+      "category": "code_execution",
+      "status": "FAIL",
+      "score": 0.0,
+      "details": [
+        {
+          "scorer": "schema_valid",
+          "passed": false,
+          "score": 0.0,
+          "details": "Schema validation failed: 'input_rows' is a required property"
+        },
+        {
+          "scorer": "schema_valid",
+          "passed": false,
+          "score": 0.0,
+          "details": "No schema provided"
+        },
+        {
+          "scorer": "code_passes_tests",
+          "passed": false,
+          "score": 0.6666666666666666,
+          "details": "Tests: 2/3"
+        },
+        {
+          "scorer": "file_exists",
+          "passed": false,
+          "score": 0.0,
+          "details": "Files found: 0/3"
+        }
+      ],
+      "cost_usd": 0.009000000000000001,
+      "latency_ms": 509.0441703796387,
+      "error": null,
+      "output": "{\"status\": \"success\", \"code_file\": \"script.py\", \"test_results\": {\"passed\": 2, \"total\": 3}, \"sorted\": [1, 1, 2, 3, 4, 5, 6, 9], \"fib_20th\": 6765}"
+    }
+  ],
+  "summary": {
+    "total_tasks": 9,
+    "passed": 1,
+    "failed": 8,
+    "errors": 0,
+    "pass_rate": 0.1111111111111111,
+    "avg_cost_usd": 0.005,
+    "total_cost_usd": 0.045,
+    "avg_latency_ms": 674.8410065968832,
+    "by_category": {
+      "data_analysis": {
+        "passed": 1,
+        "failed": 2,
+        "errors": 0,
+        "avg_score": 0.27777777777777773
+      },
+      "multi_hop_research": {
+        "passed": 0,
+        "failed": 3,
+        "errors": 0,
+        "avg_score": 0.2222222222222222
+      },
+      "code_execution": {
+        "passed": 0,
+        "failed": 3,
+        "errors": 0,
+        "avg_score": 0.0
+      }
+    }
+  }
+}
