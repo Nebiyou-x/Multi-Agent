@@ -1,9 +1,6 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { API, listRuns, fmtMs, fmtUsd, timeAgo, type RunSummary } from "@/lib/api";
-import { ModelChip, StatusPill } from "@/components/ui";
+import { StatusPill } from "@/components/ui";
+import type { TraceSummary } from "@/lib/traces";
 
 interface DocLink {
   slug: string;
@@ -36,53 +33,24 @@ const PRINCIPLES = [
   { t: "Separated", d: "Orchestration and infrastructure stay apart, so either can change alone." },
 ];
 
-function RunLoading() {
-  return (
-    <div className="panel">
-      <div className="panel__head">
-        <h2 className="panel__title">Latest run</h2>
-      </div>
-      <div className="panel__body skeleton__stack" aria-hidden="true">
-        <div className="skeleton skeleton--title" />
-        <div className="skeleton skeleton--line" />
-        <div className="skeleton skeleton--block" />
-      </div>
-    </div>
-  );
+function fmtMs(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+  return `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s`;
 }
 
-export default function HomePage({ docs }: { docs: DocLink[] }) {
-const [runs, setRuns] = useState<RunSummary[]>([]);
-const [err, setErr] = useState<string | null>(null);
-const [loading, setLoading] = useState(true);
-const [reloadKey, setReloadKey] = useState(0);
+function fmtUsd(value: number): string {
+  return value === 0 ? "$0.00" : `$${value.toFixed(4)}`;
+}
 
- const reload = () => {
-  setLoading(true);
-  setErr(null);
-  setReloadKey((k) => k + 1);
-};
-
-useEffect(() => {
-  let active = true;
-  listRuns(50)
-    .then((data) => {
-      if (active) setRuns(data);
-    })
-    .catch((error) => {
-      if (active) setErr(String(error));
-    })
-    .finally(() => {
-      if (active) setLoading(false);
-    });
-  return () => {
-    active = false;
-  };
-}, [reloadKey]);
-
-
-
-  const latestRun = useMemo(() => runs[0], [runs]);
+export default function HomePage({
+  docs,
+  traces,
+}: {
+  docs: DocLink[];
+  traces: TraceSummary[];
+}) {
+  const latestTrace = traces[0];
 
   return (
     <div className="shell page workbench">
@@ -92,9 +60,7 @@ useEffect(() => {
           <p className="page-head__line">
             Agent Forge plans, runs and critiques multi-agent tasks in sandboxed steps, and records every one as a trace you can read.
           </p>
-          <p className="page-head__meta">
-            API <span className="mono">{API}</span>
-          </p>
+          <p className="page-head__meta">Committed trace reports</p>
         </div>
         <div className="page-head__actions">
           <Link href="/traces" className="btn btn--primary">
@@ -108,70 +74,41 @@ useEffect(() => {
 
       <div className="workbench__grid">
         <div className="workbench__main">
-          {loading && <RunLoading />}
-
-          {!loading && err && (
-            <div className="panel">
-              <div className="panel__head">
-                <h2 className="panel__title">Latest run</h2>
-              </div>
-              <div className="panel__body">
-                <div className="empty">
-                  <h3 className="empty__title">The API did not answer</h3>
-                  <p className="empty__line">The workbench could not read runs from <span className="empty__path">{API}</span>.</p>
-                  <p className="empty__path">{err}</p>
-                  <div className="empty__actions">
-                    <button type="button" className="btn btn--primary" onClick={reload}>
-                      Try again
-                    </button>
-                    <Link href="/traces" className="btn btn--quiet">
-                      Open committed traces
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {!loading && !err && latestRun && (
+          {latestTrace && (
             <article className="panel panel--lead">
               <div className="panel__head">
-                <h2 className="panel__title">Latest run</h2>
-                <StatusPill status={latestRun.status} />
+                <h2 className="panel__title">Latest committed trace</h2>
+                <StatusPill status={latestTrace.status} />
               </div>
               <div className="panel__body record">
-                <p className="record__task">{latestRun.task}</p>
+                <p className="record__task">{latestTrace.task}</p>
                 <div className="record__meta">
                   <div className="meta__item">
-                    <span className="meta__label">Run</span>
-                    <span className="meta__value">{latestRun.run_id.slice(0, 8)}</span>
+                    <span className="meta__label">Trace</span>
+                    <span className="meta__value">{latestTrace.runId.slice(0, 8)}</span>
                   </div>
                   <div className="meta__item">
-                    <span className="meta__label">Model</span>
-                    <ModelChip provider={latestRun.provider} model={latestRun.model} />
-                  </div>
-                  <div className="meta__item">
-                    <span className="meta__label">Started</span>
-                    <span className="meta__value">{timeAgo(latestRun.created_at)}</span>
+                    <span className="meta__label">Recorded</span>
+                    <span className="meta__value">{latestTrace.timestamp.slice(0, 10)}</span>
                   </div>
                 </div>
                 <div className="metrics metrics--three">
                   <div className="metric">
-                    <span className="metric__value">{fmtMs(latestRun.duration_ms)}</span>
+                    <span className="metric__value">{fmtMs(latestTrace.durationMs)}</span>
                     <span className="metric__label">Duration</span>
                   </div>
                   <div className="metric">
-                    <span className="metric__value">{fmtUsd(latestRun.cost_usd)}</span>
+                    <span className="metric__value">{fmtUsd(latestTrace.costUsd)}</span>
                     <span className="metric__label">Cost</span>
                   </div>
                   <div className="metric">
-                    <span className="metric__value">{latestRun.n_steps}</span>
+                    <span className="metric__value">{latestTrace.stepCount}</span>
                     <span className="metric__label">Steps</span>
                   </div>
                 </div>
                 <div className="record__actions">
-                  <Link href={`/traces/${latestRun.run_id}`} className="btn btn--primary">
-                    Inspect run
+                  <Link href={`/traces/${latestTrace.runId}`} className="btn btn--primary">
+                    Inspect trace
                   </Link>
                   <Link href="/traces" className="btn btn--quiet">
                     All traces
@@ -181,16 +118,16 @@ useEffect(() => {
             </article>
           )}
 
-          {!loading && !err && !latestRun && (
+          {!latestTrace && (
             <div className="panel">
               <div className="panel__head">
-                <h2 className="panel__title">Latest run</h2>
+                <h2 className="panel__title">Latest committed trace</h2>
               </div>
               <div className="panel__body">
                 <div className="empty">
-                  <h3 className="empty__title">No runs recorded yet</h3>
+                  <h3 className="empty__title">No committed traces yet</h3>
                   <p className="empty__line">
-                    The workbench reads runs from <span className="empty__path">{API}</span>. Post a task to create the first trace.
+                    Committed trace reports will appear here when available.
                   </p>
                   <div className="empty__actions">
                     <Link href="/docs/running-a-task" className="btn btn--primary">
@@ -207,54 +144,44 @@ useEffect(() => {
 
           <section>
             <div className="timeline-head">
-              <h2>Recent runs</h2>
+              <h2>Recent traces</h2>
               <Link href="/traces" className="table__action">
                 All traces
               </Link>
             </div>
-            {loading && (
-              <div className="panel">
-                <div className="panel__body skeleton__stack" aria-hidden="true">
-                  <div className="skeleton skeleton--line" />
-                  <div className="skeleton skeleton--line" />
-                  <div className="skeleton skeleton--line" />
-                </div>
-              </div>
-            )}
-            {!loading && err && <p className="empty__line">Recent runs are unavailable until the API answers.</p>}
-            {!loading && !err && runs.length > 0 && (
+            {traces.length > 0 && (
               <div className="table-scroll">
                 <table className="table">
                   <thead>
                     <tr>
                       <th>Task</th>
-                      <th>Run</th>
+                      <th>Trace</th>
                       <th className="hide-sm">Duration</th>
                       <th className="hide-sm">Cost</th>
                       <th>Steps</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {runs.slice(0, 5).map((r) => (
-                      <tr key={r.run_id}>
+                    {traces.slice(0, 5).map((trace) => (
+                      <tr key={trace.runId}>
                         <td>
-                          <Link href={`/traces/${r.run_id}`} className="table__task">
-                            {r.task.slice(0, 60)}
+                          <Link href={`/traces/${trace.runId}`} className="table__task">
+                            {trace.task.slice(0, 60)}
                           </Link>
                         </td>
                         <td>
-                          <Link href={`/traces/${r.run_id}`} className="table__action">
-                            {r.run_id.slice(0, 8)}
+                          <Link href={`/traces/${trace.runId}`} className="table__action">
+                            {trace.runId.slice(0, 8)}
                           </Link>
                         </td>
                         <td className="hide-sm">
-                          <span className="table__num">{fmtMs(r.duration_ms)}</span>
+                          <span className="table__num">{fmtMs(trace.durationMs)}</span>
                         </td>
                         <td className="hide-sm">
-                          <span className="table__num">{fmtUsd(r.cost_usd)}</span>
+                          <span className="table__num">{fmtUsd(trace.costUsd)}</span>
                         </td>
                         <td>
-                          <span className="table__num">{r.n_steps}</span>
+                          <span className="table__num">{trace.stepCount}</span>
                         </td>
                       </tr>
                     ))}
@@ -262,7 +189,7 @@ useEffect(() => {
                 </table>
               </div>
             )}
-            {!loading && !err && runs.length === 0 && <p className="empty__line">No committed runs yet.</p>}
+            {traces.length === 0 && <p className="empty__line">No committed traces yet.</p>}
           </section>
 
           <section>

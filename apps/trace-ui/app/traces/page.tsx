@@ -1,41 +1,7 @@
 import { Suspense } from "react";
-import { readdirSync, readFileSync } from "fs";
-import { join } from "path";
 import Link from "next/link";
 import { RelativeTime } from "@/components/RelativeTime";
-
-interface TraceFile {
-  name: string;
-  task: string;
-  runId: string;
-  timestamp: string;
-}
-
-function listTraces(): TraceFile[] {
-  try {
-    const tracesDir = join(process.cwd(), "reports", "traces");
-    const files = readdirSync(tracesDir).filter((f) => f.endsWith(".json"));
-
-    return files
-      .map((file) => {
-        try {
-          const content = readFileSync(join(tracesDir, file), "utf-8");
-          const data = JSON.parse(content);
-          return {
-            name: file.replace(".json", ""),
-            task: data.task || "Untitled",
-            runId: data.run_id || file.replace(".json", ""),
-            timestamp: data.timestamp || new Date().toISOString(),
-          };
-        } catch {
-          return null;
-        }
-      })
-      .filter((x): x is TraceFile => x !== null);
-  } catch {
-    return [];
-  }
-}
+import { listTraces } from "@/lib/traces";
 
 export default function TracesPage() {
   const traces = listTraces();

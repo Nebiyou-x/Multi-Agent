@@ -7,7 +7,7 @@ markdown docs in `content/docs/`.
 
 | Route | Purpose |
 | :---- | :------ |
-| `/` | Workbench with the latest API run, recent runs, and docs |
+| `/` | Workbench with the latest committed trace, recent traces, and docs |
 | `/traces` | Committed trace reports from `reports/traces/` |
 | `/traces/[runId]` | Step-by-step trace inspector |
 | `/evals` | Bundled evaluation runs from `reports/evals/` |
@@ -29,6 +29,6 @@ npm run lint
 npm run build
 ```
 
-The run workbench reads the agent API from `NEXT_PUBLIC_API_URL` (defaults to
-`http://localhost:8000`). Evaluation and trace views are file-backed and do not
-need the API.
+The workbench, evaluation, and trace views are file-backed and do not need the
+agent API. The workbench and trace list use reports in `reports/traces/`;
+evaluation reports are bundled from `reports/evals/`.
