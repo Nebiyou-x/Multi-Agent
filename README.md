@@ -9,9 +9,10 @@ This platform provides a complete infrastructure for running autonomous AI agent
 - **Planning**: Multi-step task planning with dependency tracking
 - **Execution**: Tool-based agent reasoning with support for multiple LLM providers
 - **Sandboxing**: Isolated Docker-based execution environment for generated code
-- **Evaluation**: Automated critique and revision loops for quality assurance
-- **Visualization**: Real-time trace UI for monitoring and debugging
+- **Evaluation**: Automated critique/revision loops plus deterministic golden-task scoring
+- **Visualization**: Trace UI for runs and an evaluation dashboard with regression comparison
 - **Reporting**: Structured reports from execution traces with schema validation
+- **Performance Tracking**: Config-hashed eval runs, category breakdowns, and PASS→FAIL detection
 
 ## Architecture
 
@@ -52,7 +53,26 @@ This platform provides a complete infrastructure for running autonomous AI agent
    │  - Run Browser        │
    │  - Tree Visualization │
    │  - Trace Inspector    │
+   │  - Eval Dashboard     │
    └───────────────────────┘
+```
+
+Evaluation path, independent of the run-time request flow:
+
+```
+datasets/golden/tasks.jsonl
+          │
+          ▼
+   EvalRunner (async, max_parallel)
+          │
+          ▼
+   7 deterministic scorers
+          │
+          ▼
+ data/eval_results/eval_*.json
+          │
+          ▼
+ Trace UI /evals ──► /evals/compare/{a}/{b}
 ```
 
 ## Tech Stack
@@ -65,6 +85,7 @@ This platform provides a complete infrastructure for running autonomous AI agent
 | **Frontend**     | TypeScript, Next.js, React | Execution visualization & UX     |
 | **Database**     | PostgreSQL 16              | Run history & trace persistence  |
 | **Cache/Queue**  | Redis 7                   | Session state & task queuing     |
+| **Evaluation**   | Python asyncio, JSON Schema | Golden tasks, scoring, regressions |
 | **LLM Providers**| OpenAI, Anthropic, Gemini | AI reasoning & planning          |
 
 ## Key Components
@@ -137,6 +158,21 @@ Next.js frontend dashboard:
 - Tool call details with syntax highlighting
 - Real-time cost calculation
 - Artifact preview and download
+- Evaluation dashboard at `/evals`: committed run reports, category breakdowns, per-task scorer details, and run-to-run regression comparison
+
+### Evaluation Framework (`packages/eval`)
+
+Deterministic performance tracking and regression detection:
+
+- **Golden Dataset** (`golden.py`): 9 tasks across data analysis, multi-hop research, and code execution, stored in `datasets/golden/tasks.jsonl`
+- **Deterministic Scorers** (`scorers.py`): 7 scorers plus aliases for task-specific check names; schema validation always runs first
+- **Pass Rule**: a task passes only when its output validates against the task schema and at least 80% of the remaining checks pass. Score is the mean of the schema score and the check pass fraction
+- **Parallel Executor** (`runner.py`): async task execution with `max_parallel`, config hashing, per-task metrics, and JSON/Markdown reports
+- **Regression Detection**: compares any two runs and flags PASS→FAIL regressions plus FAIL→PASS improvements
+- **Persistence**: reports are written to `data/eval_results/` and rendered by the Trace UI
+- **CLI Tool** (`scripts/eval.py`): `init`, `run`, `list`, `show`, and `compare` commands
+
+The committed runs in `data/eval_results/` were produced with the deterministic mock executor in `runner.run_task()`. They validate the scoring, reporting, and regression plumbing; wire `run_task()` to `packages.agent_core.executor` for model-specific results.
 
 ## Getting Started
 
@@ -190,9 +226,10 @@ Multi-Agent/
 │   │   └── Dockerfile          # API container build
 │   │
 │   └── trace-ui/               # Next.js frontend dashboard
-│       ├── app/                # App router (Next.js 13+)
+│       ├── app/                # App router: /traces, /evals, /docs
 │       ├── components/         # React components
-│       ├── lib/                # Utilities, API client
+│       ├── lib/                # API client, eval report loader, diffing
+│       ├── reports/            # Committed trace + eval reports for static views
 │       └── Dockerfile          # Trace UI container build
 │
 ├── packages/                   # Shared Python libraries
@@ -201,6 +238,11 @@ Multi-Agent/
 │   │   ├── executor.py
 │   │   ├── llm.py
 │   │   └── critic.py
+│   │
+│   ├── eval/                   # Performance evaluation framework
+│   │   ├── golden.py           # Golden dataset (9 deterministic tasks)
+│   │   ├── scorers.py          # 7 deterministic scorers + aliases
+│   │   └── runner.py           # Parallel executor + regression tracking
 │   │
 │   ├── sandbox/                # Sandbox execution orchestration
 │   │   ├── manager.py          # Docker sandbox manager
@@ -233,11 +275,19 @@ Multi-Agent/
 │   ├── integration/
 │   └── e2e/
 │
+├── datasets/                   # Deterministic evaluation inputs
+│   └── golden/tasks.jsonl      # 9 golden tasks with schemas + checks
+│
 ├── content/docs/               # Documentation
-│   └── getting-started.md      # Complete setup walkthrough
+│   ├── getting-started.md      # Complete setup walkthrough
+│   ├── evaluation.md           # Evaluation reference
+│   └── eval-quickstart.md      # 5-minute evaluation guide
 │
 ├── scripts/                    # Utility scripts
-├── data/                       # Runtime data (artifacts, volumes)
+│   └── eval.py                 # Evaluation CLI (init/run/list/show/compare)
+├── data/                       # Runtime data
+│   ├── artifacts/              # Generated artifacts per run
+│   └── eval_results/           # Eval JSON + Markdown reports
 ├── docker-compose.yml          # Service orchestration
 ├── Makefile                    # Build & development tasks
 └── requirements-dev.txt        # Development dependencies
@@ -315,6 +365,74 @@ Files generated during execution:
 - Served via `/artifacts/{run_id}/{name}`
 - Persisted across service restarts
 
+## Evaluation
+
+The evaluation framework measures agent behavior against a fixed golden dataset and makes regressions visible in CI and in the Trace UI.
+
+### Method
+
+- **Golden dataset**: 9 tasks in `datasets/golden/tasks.jsonl`, three per category:
+  - **Data analysis**: fetch, compute, chart, and validate
+  - **Multi-hop research**: search, fetch, synthesize, cite
+  - **Code execution**: generate code, run tests, validate files
+- **Deterministic scoring**: every task defines a JSON schema, a list of checks, and optionally a reference answer.
+- **Pass rule**: `schema_valid` must pass, at least 80% of the remaining checks must pass, and the task score is the mean of the schema score and the check pass fraction.
+- **Config identity**: a SHA-256 hash of the run configuration groups runs and makes comparisons reproducible.
+- **Regression detection**: compare any two runs to flag `PASS → FAIL` regressions, `FAIL → PASS` improvements, and score/cost/latency deltas.
+
+| Scorer | What it validates |
+| :----- | :---------------- |
+| `schema_valid` | Output conforms to the task's JSON Schema |
+| `numeric_tolerance` | Reference numbers match within ±5% |
+| `exact_match` | Exact string or structure equality |
+| `code_passes_tests` | `test_results.passed / total ≥ 80%` |
+| `file_exists` | Expected artifact files were generated |
+| `citation_quality` | URLs or citation markers are present |
+| `output_length` | Output meets the minimum length threshold |
+
+Task-specific check names (`numeric_exact`, `quartile_order`, `source_count`, `output_file_valid`, etc.) resolve through aliases in `packages/eval/scorers.py`.
+
+### Committed results
+
+Reports live in `data/eval_results/` and are rendered in the Trace UI at `/evals`.
+
+| Run | Config | Passed | Pass rate | Total cost | Avg latency |
+| :-- | :----- | -----: | --------: | ---------: | ----------: |
+| `eval_d3bd3327_20261105_105605` | `model=gpt-4, version=1.0` | 1/9 | 11.1% | $0.0450 | 675ms |
+| `eval_4b4b83c1_20261105_105608` | `model=claude-opus, version=2.0` | 1/9 | 11.1% | $0.0450 | 507ms |
+| `eval_76378ca5_20261105_105201` | `gpt-4, 1.0, temperature=0.7` | 1/9 | 11.1% | $0.0450 | 384ms |
+| `eval_32fac52f_20261105_105202` | `claude-opus, 2.0, temperature=0.5` | 1/9 | 11.1% | $0.0450 | 318ms |
+| `eval_ab416ce3_20261105_105501` | `test=quick` | 1/9 | 11.1% | $0.0450 | 399ms |
+
+By category, every committed run reports the same profile:
+
+| Category | Tasks | Passed | Avg score |
+| :------- | ----: | -----: | --------: |
+| Data analysis | 3 | 1 | 0.28 |
+| Multi-hop research | 3 | 0 | 0.22 |
+| Code execution | 3 | 0 | 0.00 |
+
+> **Current scope:** `EvalRunner.run_task()` still returns deterministic mock outputs. Identical scores across configs are expected and mean the harness, scorers, reporting, and regression detection are working—not that the models are equivalent. Wire `run_task()` to `packages.agent_core.executor` before using these numbers for model selection.
+
+### Reproduce and compare
+
+```bash
+# Initialize the golden dataset (one time)
+make eval-init
+
+# Run the full evaluation and write JSON + Markdown reports
+make eval-run
+# or: python scripts/eval.py run --config '{"model":"gpt-4","version":"1.0"}' --markdown
+
+# List committed runs
+make eval-list
+
+# Compare two runs; exits non-zero when a regression is found
+python scripts/eval.py compare --run1 <run1_id> --run2 <run2_id> --markdown
+```
+
+Open `/evals` in the Trace UI to inspect per-task scorer details, or `/evals/compare/{run_a}/{run_b}` to render the same regression analysis.
+
 ## Development
 
 ### Setup
@@ -340,6 +458,26 @@ pytest --cov=packages --cov=apps
 # Specific test file
 pytest tests/unit/test_planner.py
 ```
+
+### Running Evaluations
+
+```bash
+# Initialize golden dataset (one time)
+make eval-init
+
+# Run evaluation against agent config
+python scripts/eval.py run --config '{"model":"gpt-4","version":"1.0"}' --markdown
+# or simply: make eval-run
+
+# List all evaluation runs
+make eval-list
+
+# Compare two runs and detect regressions
+make eval-compare RUN1=<run1_id> RUN2=<run2_id>
+# or: python scripts/eval.py compare --run1 <run1_id> --run2 <run2_id> --markdown
+```
+
+Results are written to `data/eval_results/` and can be inspected in the Trace UI at `/evals` and `/evals/compare/{a}/{b}`.
 
 ### Local Development
 
@@ -395,6 +533,9 @@ MAX_STEPS=20                     # Maximum execution steps
 - **Max execution steps**: 20 per run
 - **Max revision attempts**: 3 per run
 - **Trace output**: Truncated to 15,000 characters for large results
+- **Evaluation tasks**: 9 golden tasks across 3 categories
+- **Evaluation parallelism**: 4 tasks by default (`max_parallel`)
+- **Evaluation runtime**: ~1-2s with the mock executor; real model latency dominates after integration
 
 ## Troubleshooting
 
@@ -437,6 +578,8 @@ MAX_MEMORY_MB=1024
 ## Resources
 
 - [Getting Started Guide](content/docs/getting-started.md) — Complete setup walkthrough with real example
+- [Evaluation Framework](content/docs/evaluation.md) — Golden dataset, scorers, regression tracking
+- [Evaluation Quick Start](content/docs/eval-quickstart.md) — 5-minute guide to running evals
 - [API Documentation](docs/api.md) — Endpoint specifications
 - [Architecture Deep Dive](docs/architecture.md) — System design details
 - [Tool Development Guide](docs/tools.md) — Creating custom agent tools
