@@ -8,6 +8,7 @@ import {
   fmtLatency,
   fmtPercent,
   getEvalReport,
+  listEvalRunIds,
   type EvalTaskComparison,
 } from "@/lib/evals";
 
@@ -356,6 +357,13 @@ async function CompareContent({
         </div>
       )}
     </>
+  );
+}
+
+export function generateStaticParams() {
+  const ids = listEvalRunIds();
+  return ids.flatMap((a) =>
+    ids.filter((b) => b !== a).map((b) => ({ a, b }))
   );
 }
 

@@ -394,7 +394,7 @@ Task-specific check names (`numeric_exact`, `quartile_order`, `source_count`, `o
 
 ### Committed results
 
-Reports live in `data/eval_results/` and are rendered in the Trace UI at `/evals`.
+Reports live in `data/eval_results/`. Committed copies under `apps/trace-ui/reports/evals/` are bundled into the Trace UI at build time and rendered at `/evals`, so the deployed UI does not need a filesystem read or the evaluator runtime.
 
 | Run | Config | Passed | Pass rate | Total cost | Avg latency |
 | :-- | :----- | -----: | --------: | ---------: | ----------: |

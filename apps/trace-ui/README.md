@@ -10,14 +10,15 @@ markdown docs in `content/docs/`.
 | `/` | Workbench with the latest API run, recent runs, and docs |
 | `/traces` | Committed trace reports from `reports/traces/` |
 | `/traces/[runId]` | Step-by-step trace inspector |
-| `/evals` | Committed evaluation runs from `reports/evals/` and `data/eval_results/` |
+| `/evals` | Bundled evaluation runs from `reports/evals/` |
 | `/evals/[runId]` | Per-category summary, per-task scorer details, and raw task output |
 | `/evals/compare/[a]/[b]` | Pass-rate, cost, latency, and PASS→FAIL regression comparison |
 | `/docs` | Markdown documentation rendered from `content/docs/` |
 
-Evaluation reports are loaded server-side by `lib/evals.ts`. The loader accepts
-the JSON reports written by `packages/eval/runner.py` and normalizes older
-sample reports when needed. `EVALS_DIR` can override the report directory.
+Evaluation reports are bundled at build time by `lib/eval-data.ts`, which
+imports the JSON files in `reports/evals/`. The pages never read the filesystem
+at request time, so a static deployment shows the reports without a server.
+After adding a new report, add its import to `lib/eval-data.ts` and rebuild.
 
 ## Development
 

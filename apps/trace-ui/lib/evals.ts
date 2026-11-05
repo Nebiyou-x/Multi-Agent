@@ -1,9 +1,7 @@
-// Server-only loader for committed evaluation reports. The evaluator writes
-// JSON to data/eval_results/ at the repo root; the UI also accepts reports
-// copied into apps/trace-ui/reports/evals/ (useful for the Docker image, where
-// runtime data is not part of the build context).
-import { readdirSync, readFileSync, statSync } from "fs";
-import { join } from "path";
+// Static evaluation data used by the UI. Reports are bundled from
+// reports/evals/ via lib/eval-data.ts, so the deployed app never reads the
+// filesystem at request time.
+import { EVAL_DATA } from "./eval-data";
 
 export type EvalStatus = "PASS" | "FAIL" | "ERROR";
 
@@ -87,29 +85,6 @@ export interface EvalComparison {
 }
 
 type RawObject = Record<string, unknown>;
-
-const CANDIDATE_DIRS = [
-  process.env.EVALS_DIR,
-  join(process.cwd(), "reports", "evals"),
-  join(process.cwd(), "data", "eval_results"),
-  join(process.cwd(), "..", "..", "data", "eval_results"),
-].filter((dir): dir is string => Boolean(dir));
-
-function isDirectory(dir: string): boolean {
-  try {
-    return statSync(dir).isDirectory();
-  } catch {
-    return false;
-  }
-}
-
-function readJson(file: string): RawObject | null {
-  try {
-    return JSON.parse(readFileSync(file, "utf-8")) as RawObject;
-  } catch {
-    return null;
-  }
-}
 
 function asNumber(value: unknown, fallback = 0): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
@@ -239,46 +214,24 @@ function normalizeReport(raw: RawObject, fallbackId: string): EvalReport {
   };
 }
 
-function loadReportFile(file: string, fallbackId: string): EvalReport | null {
-  const raw = readJson(file);
-  return raw ? normalizeReport(raw, fallbackId) : null;
-}
+const REPORTS: EvalReport[] = EVAL_DATA.map(({ name, data }) =>
+  normalizeReport(data as RawObject, name)
+).sort(
+  (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+);
 
 export function listEvalReports(): EvalReport[] {
-  const seen = new Set<string>();
-  const reports: EvalReport[] = [];
+  return REPORTS;
+}
 
-  for (const dir of CANDIDATE_DIRS) {
-    if (!isDirectory(dir)) continue;
-
-    let entries: string[] = [];
-    try {
-      entries = readdirSync(dir);
-    } catch {
-      continue;
-    }
-
-    for (const entry of entries) {
-      if (!entry.endsWith(".json") || entry.startsWith("comparison_")) continue;
-      const report = loadReportFile(
-        join(dir, entry),
-        entry.replace(/\.json$/, "")
-      );
-      if (!report || seen.has(report.run_id)) continue;
-      seen.add(report.run_id);
-      reports.push(report);
-    }
-  }
-
-  return reports.sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  );
+export function listEvalRunIds(): string[] {
+  return REPORTS.map((report) => report.run_id);
 }
 
 export function getEvalReport(runId: string): EvalReport | null {
-  // Prevent path traversal from the dynamic route.
+  // Keep the same guard even though reports are bundled, not read from disk.
   if (!/^[A-Za-z0-9._-]+$/.test(runId)) return null;
-  return listEvalReports().find((report) => report.run_id === runId) ?? null;
+  return REPORTS.find((report) => report.run_id === runId) ?? null;
 }
 
 export function compareEvalReports(

@@ -8,6 +8,7 @@ import {
   fmtPercent,
   getEvalReport,
   listEvalReports,
+  listEvalRunIds,
   type EvalTaskResult,
 } from "@/lib/evals";
 
@@ -323,6 +324,10 @@ async function EvalDetailContent({
       </section>
     </>
   );
+}
+
+export function generateStaticParams() {
+  return listEvalRunIds().map((configId) => ({ configId }));
 }
 
 export default function EvalDetailPage({
